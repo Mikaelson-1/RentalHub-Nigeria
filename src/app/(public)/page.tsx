@@ -3,54 +3,6 @@ import Link from "next/link";
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#fafafa]">
-      {/* Header/Navigation */}
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-[#192F59] rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
-                </svg>
-              </div>
-              <span className="font-sans text-lg font-bold tracking-wider text-[#192F59]">
-                RentalHub NG
-              </span>
-            </div>
-
-            {/* Center Navigation */}
-            <nav className="hidden md:flex items-center gap-8">
-              <Link href="#" className="font-sans text-sm text-gray-600 hover:text-[#192F59] transition-colors">
-                Universities
-              </Link>
-              <Link href="#" className="font-sans text-sm text-gray-600 hover:text-[#192F59] transition-colors">
-                Hostels
-              </Link>
-              <Link href="#" className="font-sans text-sm text-gray-600 hover:text-[#192F59] transition-colors">
-                For Landlords
-              </Link>
-              <Link href="#" className="font-sans text-sm text-gray-600 hover:text-[#192F59] transition-colors">
-                Safety
-              </Link>
-            </nav>
-
-            {/* Right Side */}
-            <div className="flex items-center gap-4">
-              <Link href="#" className="font-sans text-sm font-medium text-[#192F59] hover:text-[#E67E22] transition-colors">
-                LOGIN
-              </Link>
-              <Link 
-                href="#" 
-                className="font-sans text-xs font-semibold bg-[#E67E22] hover:bg-[#D35400] text-white px-5 py-2.5 rounded-lg transition-colors"
-              >
-                LIST PROPERTY
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* Hero Section */}
       <section className="relative bg-gradient-to-b from-white to-gray-50 py-16 lg:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -58,11 +10,11 @@ export default function HomePage() {
             {/* Left Column */}
             <div>
               <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-normal text-[#192F59] leading-[0.95] tracking-tight">
-                THE
+                YOUR
                 <br />
-                PERFECT
+                CAMPUS
                 <br />
-                HOSTEL<sup className="text-xl align-super">®</sup>
+                HOME
               </h1>
               
               <p className="font-sans text-base text-gray-500 mt-6 ml-1">

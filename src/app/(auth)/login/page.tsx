@@ -3,16 +3,15 @@
 import Link from "next/link";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/";
   
   const [formData, setFormData] = useState({
     email: "",
     password: "",
+    role: "STUDENT",
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -27,7 +26,6 @@ export default function LoginPage() {
         email: formData.email,
         password: formData.password,
         redirect: false,
-        callbackUrl,
       });
 
       if (result?.error) {
@@ -36,8 +34,28 @@ export default function LoginPage() {
         return;
       }
 
-      // Successful login - redirect based on role or callbackUrl
-      router.push(callbackUrl);
+      // Successful login - get session to check role
+      const response = await fetch("/api/auth/session");
+      const session = await response.json();
+
+      if (session?.user?.role) {
+        // Redirect based on role
+        switch (session.user.role) {
+          case "LANDLORD":
+            router.push("/landlord");
+            break;
+          case "STUDENT":
+            router.push("/student");
+            break;
+          case "ADMIN":
+            router.push("/admin");
+            break;
+          default:
+            router.push("/");
+        }
+      } else {
+        router.push("/");
+      }
       router.refresh();
     } catch (error) {
       setError("An error occurred. Please try again.");
@@ -46,11 +64,13 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="bg-white p-8 rounded-xl shadow-md">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full">
+        <div className="bg-white p-8 rounded-xl shadow-md">
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-navy">Welcome Back</h1>
+        <h1 className="text-2xl font-bold text-[#192F59]">Welcome Back</h1>
         <p className="text-gray-600 mt-2">
-          Sign in to your RentalHub account
+          Sign in to your RentalHub NG account
         </p>
       </div>
 
@@ -61,6 +81,27 @@ export default function LoginPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Role Selector */}
+        <div>
+          <label
+            htmlFor="role"
+            className="block text-sm font-medium text-gray-700"
+          >
+            I am logging in as
+          </label>
+          <select
+            id="role"
+            value={formData.role}
+            onChange={(e) =>
+              setFormData({ ...formData, role: e.target.value })
+            }
+            className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E67E22] focus:border-transparent"
+          >
+            <option value="STUDENT">Student</option>
+            <option value="LANDLORD">Landlord</option>
+          </select>
+        </div>
+
         <div>
           <label
             htmlFor="email"
@@ -75,7 +116,7 @@ export default function LoginPage() {
             onChange={(e) =>
               setFormData({ ...formData, email: e.target.value })
             }
-            className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+            className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E67E22] focus:border-transparent"
             placeholder="you@example.com"
             required
           />
@@ -95,7 +136,7 @@ export default function LoginPage() {
             onChange={(e) =>
               setFormData({ ...formData, password: e.target.value })
             }
-            className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+            className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E67E22] focus:border-transparent"
             placeholder="••••••••"
             required
           />
@@ -106,7 +147,7 @@ export default function LoginPage() {
             <input
               type="checkbox"
               id="remember"
-              className="h-4 w-4 text-primary-green focus:ring-primary-green border-gray-300 rounded"
+              className="h-4 w-4 text-[#E67E22] focus:ring-[#E67E22] border-gray-300 rounded"
             />
             <label
               htmlFor="remember"
@@ -117,7 +158,7 @@ export default function LoginPage() {
           </div>
           <Link
             href="/forgot-password"
-            className="text-sm text-primary-green hover:text-primary-dark"
+            className="text-sm text-[#E67E22] hover:text-[#D35400]"
           >
             Forgot password?
           </Link>
@@ -126,7 +167,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full bg-primary-green hover:bg-primary-dark text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-[#E67E22] hover:bg-[#D35400] text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? "Signing In..." : "Sign In"}
         </button>
@@ -137,11 +178,12 @@ export default function LoginPage() {
           Don&apos;t have an account?{" "}
           <Link
             href="/register"
-            className="text-primary-green hover:text-primary-dark font-medium"
+            className="text-[#E67E22] hover:text-[#D35400] font-medium"
           >
             Sign up
           </Link>
         </p>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 // Mock data - replace with actual API calls
 const mockListings = [
@@ -66,9 +67,9 @@ export default function LandlordDashboard() {
             Manage your listings and tenant requests
           </p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-primary-green hover:bg-primary-dark text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center space-x-2"
+        <Link
+          href="/landlord/add-property"
+          className="bg-[#E67E22] hover:bg-[#D35400] text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center space-x-2"
         >
           <svg
             className="w-5 h-5"
@@ -84,7 +85,7 @@ export default function LandlordDashboard() {
             />
           </svg>
           <span>Add Property</span>
-        </button>
+        </Link>
       </div>
 
       {/* Stats */}
@@ -277,7 +278,7 @@ export default function LandlordDashboard() {
               </button>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="bg-primary-green hover:bg-primary-dark text-white px-4 py-2 rounded-lg"
+                className="bg-[#E67E22] hover:bg-[#D35400] text-white px-4 py-2 rounded-lg"
               >
                 Close
               </button>
