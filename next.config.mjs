@@ -1,8 +1,12 @@
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    instrumentationHook: true,
-  },
+  // Fix workspace root detection when running from a git worktree
+  outputFileTracingRoot: __dirname,
   // Keep dev and production artifacts separate to avoid cache collisions.
   distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
   images: {

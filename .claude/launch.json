@@ -4,23 +4,26 @@
     {
       "name": "Next.js Dev Server",
       "runtimeExecutable": "/usr/local/bin/node",
-      "runtimeArgs": ["/Users/mikaelson/Documents/Mikaelson Initiative/RentalHub-BOUESTI/node_modules/.bin/next", "dev"],
+      "runtimeArgs": ["/Users/mikaelson/Documents/Mikaelson Initiative/RentalHub-BOUESTI/.claude/worktrees/eloquent-dewdney/node_modules/.bin/next", "dev"],
       "port": 3000,
-      "autoPort": true
+      "autoPort": true,
+      "cwd": "/Users/mikaelson/Documents/Mikaelson Initiative/RentalHub-BOUESTI/.claude/worktrees/eloquent-dewdney"
     },
     {
       "name": "Next.js Production Server",
       "runtimeExecutable": "/usr/local/bin/node",
-      "runtimeArgs": ["/Users/mikaelson/Documents/Mikaelson Initiative/RentalHub-BOUESTI/node_modules/.bin/next", "start"],
+      "runtimeArgs": ["/Users/mikaelson/Documents/Mikaelson Initiative/RentalHub-BOUESTI/.claude/worktrees/eloquent-dewdney/node_modules/.bin/next", "start"],
       "port": 3000,
-      "autoPort": true
+      "autoPort": true,
+      "cwd": "/Users/mikaelson/Documents/Mikaelson Initiative/RentalHub-BOUESTI/.claude/worktrees/eloquent-dewdney"
     },
     {
       "name": "Prisma Studio",
       "runtimeExecutable": "/usr/local/bin/node",
-      "runtimeArgs": ["/Users/mikaelson/Documents/Mikaelson Initiative/RentalHub-BOUESTI/node_modules/.bin/prisma", "studio"],
+      "runtimeArgs": ["/Users/mikaelson/Documents/Mikaelson Initiative/RentalHub-BOUESTI/.claude/worktrees/eloquent-dewdney/node_modules/.bin/prisma", "studio"],
       "port": 5555,
-      "autoPort": true
+      "autoPort": true,
+      "cwd": "/Users/mikaelson/Documents/Mikaelson Initiative/RentalHub-BOUESTI/.claude/worktrees/eloquent-dewdney"
     }
   ]
 }
