@@ -36,7 +36,11 @@ interface PropertiesResponse {
 
 interface BookingsResponse {
   success: boolean;
-  data?: BookingItem[];
+  data?: {
+    items: BookingItem[];
+    total: number;
+    totalPages: number;
+  };
   error?: string;
 }
 
@@ -70,7 +74,7 @@ export default function StudentDashboard() {
       }
 
       setProperties(propertiesPayload.data?.items ?? []);
-      setBookings(bookingsPayload.data ?? []);
+      setBookings(bookingsPayload.data?.items ?? []);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load student dashboard.");
     } finally {

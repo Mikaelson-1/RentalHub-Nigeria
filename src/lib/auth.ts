@@ -1,9 +1,11 @@
 import { NextAuthOptions } from "next-auth";
+import type { Adapter } from "next-auth/adapters";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { Role, VerificationStatus } from "@prisma/client";
+import { rateLimit } from "./rate-limit";
 
 // Extend the NextAuth types to include role and id
 declare module "next-auth" {
@@ -33,7 +35,7 @@ declare module "next-auth/jwt" {
 }
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as any,
+  adapter: PrismaAdapter(prisma) as Adapter,
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
@@ -52,6 +54,12 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Invalid credentials");
+        }
+
+        // Rate limit: 10 login attempts per email per 15 minutes
+        const rl = rateLimit(`login:${credentials.email.toLowerCase()}`, { limit: 10, windowSeconds: 900 });
+        if (!rl.success) {
+          throw new Error(`Too many login attempts. Please try again in ${rl.retryAfter} seconds.`);
         }
 
         // Find user by email
@@ -109,9 +117,5 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  events: {
-    async signIn({ user }) {
-      console.log(`User signed in: ${user.email}`);
-    },
-  },
+  events: {},
 };

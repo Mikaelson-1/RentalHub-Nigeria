@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Check, X } from "lucide-react";
 
 interface Listing {
   id: string;
   title: string;
   price: number | string;
   status: "PENDING" | "APPROVED" | "REJECTED";
+  rejectionReason?: string | null;
   location: {
     name: string;
   };
@@ -38,7 +40,11 @@ interface ListingsResponse {
 
 interface BookingsResponse {
   success: boolean;
-  data?: BookingRequest[];
+  data?: {
+    items: BookingRequest[];
+    total: number;
+    totalPages: number;
+  };
   error?: string;
 }
 
@@ -48,6 +54,7 @@ export default function LandlordDashboard() {
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [updatingBookingId, setUpdatingBookingId] = useState("");
 
   const loadDashboardData = useCallback(async () => {
     setIsLoading(true);
@@ -71,7 +78,7 @@ export default function LandlordDashboard() {
       }
 
       setListings(listingsPayload.data?.items ?? []);
-      setRequests(requestsPayload.data ?? []);
+      setRequests(requestsPayload.data?.items ?? []);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load landlord dashboard.");
     } finally {
@@ -92,6 +99,27 @@ export default function LandlordDashboard() {
     () => requests.filter((request) => request.status === "PENDING").length,
     [requests],
   );
+
+  const updateBookingStatus = async (bookingId: string, status: "CONFIRMED" | "CANCELLED") => {
+    setUpdatingBookingId(bookingId);
+    setError("");
+    try {
+      const response = await fetch(`/api/bookings/${bookingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || `Failed to ${status.toLowerCase()} booking.`);
+      }
+      await loadDashboardData();
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : "Failed to update booking.");
+    } finally {
+      setUpdatingBookingId("");
+    }
+  };
 
   const formatPrice = (price: number | string) =>
     new Intl.NumberFormat("en-NG", {
@@ -210,7 +238,14 @@ export default function LandlordDashboard() {
                             {listing.status}
                           </span>
                         </td>
-                        <td className="py-4 px-4 text-gray-600">{listing._count?.bookings ?? 0}</td>
+                        <td className="py-4 px-4 text-gray-600">
+                          {listing._count?.bookings ?? 0}
+                          {listing.status === "REJECTED" && listing.rejectionReason && (
+                            <p className="text-xs text-red-600 mt-1">
+                              Reason: {listing.rejectionReason}
+                            </p>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -233,17 +268,39 @@ export default function LandlordDashboard() {
                       Requested on {new Date(request.createdAt).toLocaleDateString()}
                     </p>
                   </div>
-                  <span
-                    className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      request.status === "CONFIRMED"
-                        ? "bg-green-100 text-green-800"
-                        : request.status === "PENDING"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    {request.status}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        request.status === "CONFIRMED"
+                          ? "bg-green-100 text-green-800"
+                          : request.status === "PENDING"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {request.status}
+                    </span>
+                    {request.status === "PENDING" && (
+                      <>
+                        <button
+                          onClick={() => updateBookingStatus(request.id, "CONFIRMED")}
+                          disabled={updatingBookingId === request.id}
+                          title="Confirm booking"
+                          className="p-1.5 rounded-full bg-green-100 hover:bg-green-200 text-green-700 disabled:opacity-50 transition-colors"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => updateBookingStatus(request.id, "CANCELLED")}
+                          disabled={updatingBookingId === request.id}
+                          title="Cancel booking"
+                          className="p-1.5 rounded-full bg-red-100 hover:bg-red-200 text-red-700 disabled:opacity-50 transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

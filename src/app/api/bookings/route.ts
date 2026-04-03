@@ -7,14 +7,19 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
       return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
     }
+
+    const { searchParams } = new URL(request.url);
+    const page     = Math.max(1, Number(searchParams.get('page') ?? '1'));
+    const pageSize = Math.min(50, Math.max(1, Number(searchParams.get('pageSize') ?? '20')));
 
     const where =
       session.user.role === 'STUDENT'
@@ -23,23 +28,37 @@ export async function GET() {
         ? { property: { landlordId: session.user.id } }
         : {}; // ADMIN sees all
 
-    const bookings = await prisma.booking.findMany({
-      where,
-      include: {
-        student: { select: { id: true, name: true, email: true } },
-        property: {
-          include: {
-            location: true,
-            landlord: { select: { id: true, name: true, email: true } },
+    const [bookings, total] = await Promise.all([
+      prisma.booking.findMany({
+        where,
+        include: {
+          student: { select: { id: true, name: true, email: true } },
+          property: {
+            include: {
+              location: true,
+              landlord: { select: { id: true, name: true, email: true } },
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+        skip:    (page - 1) * pageSize,
+        take:    pageSize,
+      }),
+      prisma.booking.count({ where }),
+    ]);
 
-    return NextResponse.json({ success: true, data: bookings });
+    return NextResponse.json({
+      success: true,
+      data: {
+        items:      bookings,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    });
   } catch (error) {
-    console.error('[BOOKINGS GET ERROR]', error);
+    logger.error('[BOOKINGS GET ERROR]', { error: String(error) });
     return NextResponse.json({ success: false, error: 'Failed to fetch bookings.' }, { status: 500 });
   }
 }
@@ -71,30 +90,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'This property is not available for booking.' }, { status: 400 });
     }
 
-    // Prevent duplicate active bookings
-    const existingBooking = await prisma.booking.findFirst({
-      where: {
-        studentId:  session.user.id,
-        propertyId,
-        status:     { in: ['PENDING', 'CONFIRMED'] },
-      },
-    });
-    if (existingBooking) {
-      return NextResponse.json(
-        { success: false, error: 'You already have an active booking for this property.' },
-        { status: 409 },
-      );
-    }
+    // Atomically check for duplicates and create — prevents race conditions
+    const booking = await prisma.$transaction(async (tx) => {
+      const existingBooking = await tx.booking.findFirst({
+        where: {
+          studentId:  session.user.id,
+          propertyId,
+          status:     { in: ['PENDING', 'CONFIRMED'] },
+        },
+      });
+      if (existingBooking) {
+        throw Object.assign(new Error('You already have an active booking for this property.'), { code: 'DUPLICATE' });
+      }
 
-    const booking = await prisma.booking.create({
-      data: {
-        studentId:  session.user.id,
-        propertyId,
-        status:     'PENDING',
-      },
-      include: {
-        property: { include: { location: true } },
-      },
+      return tx.booking.create({
+        data: {
+          studentId:  session.user.id,
+          propertyId,
+          status:     'PENDING',
+        },
+        include: {
+          property: { include: { location: true } },
+        },
+      });
     });
 
     return NextResponse.json(
@@ -102,7 +120,10 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    console.error('[BOOKINGS POST ERROR]', error);
+    if (error instanceof Error && (error as NodeJS.ErrnoException).code === 'DUPLICATE') {
+      return NextResponse.json({ success: false, error: error.message }, { status: 409 });
+    }
+    logger.error('[BOOKINGS POST ERROR]', { error: String(error) });
     return NextResponse.json({ success: false, error: 'Failed to create booking.' }, { status: 500 });
   }
 }

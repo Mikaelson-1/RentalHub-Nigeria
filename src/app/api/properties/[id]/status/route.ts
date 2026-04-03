@@ -28,15 +28,25 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     }
 
     const body = await request.json();
-    const { status }: { status: PropertyStatus } = body;
+    const { status, rejectionReason }: { status: PropertyStatus; rejectionReason?: string } = body;
 
     if (!['APPROVED', 'REJECTED', 'PENDING'].includes(status)) {
       return NextResponse.json({ success: false, error: 'Invalid status value.' }, { status: 400 });
     }
 
+    if (status === 'REJECTED' && !rejectionReason?.trim()) {
+      return NextResponse.json(
+        { success: false, error: 'A rejection reason is required when rejecting a listing.' },
+        { status: 400 },
+      );
+    }
+
     const property = await prisma.property.update({
       where: { id },
-      data:  { status },
+      data:  {
+        status,
+        rejectionReason: status === 'REJECTED' ? rejectionReason!.trim() : null,
+      },
       include: { landlord: { select: { name: true, email: true } }, location: true },
     });
 

@@ -88,6 +88,8 @@ model Property {
   /// JSON array of image URL strings
   images           Json           @default("[]")
   status           PropertyStatus @default(PENDING)
+  /// Optional reason provided by admin when rejecting a listing
+  rejectionReason  String?        @db.Text
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
@@ -125,5 +127,6 @@ model Booking {
   @@index([studentId])
   @@index([propertyId])
   @@index([status])
+  @@index([studentId, status])
   @@map("bookings")
 }

@@ -112,7 +112,6 @@ export default function LoginPage() {
               >
                 <option value="STUDENT">Student</option>
                 <option value="LANDLORD">Landlord</option>
-                <option value="ADMIN">Admin</option>
               </select>
             </div>
 

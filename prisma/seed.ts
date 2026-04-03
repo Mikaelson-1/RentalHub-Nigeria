@@ -60,8 +60,10 @@ const IKERE_LOCATIONS: LocationSeed[] = [
 
 const ADMIN_USER = {
   name: 'BOUESTI Admin',
-  email: 'admin@bouesti.edu.ng',
-  password: 'Admin@BOUESTI2025!', // Will be hashed before storing
+  email: process.env.ADMIN_EMAIL ?? 'admin@bouesti.edu.ng',
+  // Set ADMIN_SEED_PASSWORD in your environment before running the seed.
+  // Never commit a real password here.
+  password: process.env.ADMIN_SEED_PASSWORD ?? (() => { throw new Error('ADMIN_SEED_PASSWORD env var is required'); })(),
   role: Role.ADMIN,
   verificationStatus: VerificationStatus.VERIFIED,
 };

@@ -1,0 +1,26 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Next.js Dev Server",
+      "runtimeExecutable": "/usr/local/bin/node",
+      "runtimeArgs": ["/Users/mikaelson/Documents/Mikaelson Initiative/RentalHub-BOUESTI/node_modules/.bin/next", "dev"],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "Next.js Production Server",
+      "runtimeExecutable": "/usr/local/bin/node",
+      "runtimeArgs": ["/Users/mikaelson/Documents/Mikaelson Initiative/RentalHub-BOUESTI/node_modules/.bin/next", "start"],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "Prisma Studio",
+      "runtimeExecutable": "/usr/local/bin/node",
+      "runtimeArgs": ["/Users/mikaelson/Documents/Mikaelson Initiative/RentalHub-BOUESTI/node_modules/.bin/prisma", "studio"],
+      "port": 5555,
+      "autoPort": true
+    }
+  ]
+}

@@ -233,8 +233,40 @@ export default function AddPropertyForm() {
     }
   };
 
+  const MAX_PHOTO_SIZE_MB = 2;
+  const MAX_PHOTO_SIZE_BYTES = MAX_PHOTO_SIZE_MB * 1024 * 1024;
+  const MAX_PHOTO_COUNT = 10;
+  const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
   const handlePhotoSelect = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
+
+    const oversized = files.filter((f) => f.size > MAX_PHOTO_SIZE_BYTES);
+    if (oversized.length > 0) {
+      setError("photos", {
+        type: "manual",
+        message: `Each photo must be under ${MAX_PHOTO_SIZE_MB} MB. Remove: ${oversized.map((f) => f.name).join(", ")}`,
+      });
+      return;
+    }
+
+    const invalidType = files.filter((f) => !ALLOWED_IMAGE_TYPES.includes(f.type));
+    if (invalidType.length > 0) {
+      setError("photos", {
+        type: "manual",
+        message: `Only JPEG, PNG, WebP, or GIF images are allowed.`,
+      });
+      return;
+    }
+
+    if (files.length > MAX_PHOTO_COUNT) {
+      setError("photos", {
+        type: "manual",
+        message: `Maximum ${MAX_PHOTO_COUNT} photos allowed.`,
+      });
+      return;
+    }
+
     setSelectedPhotos(files);
     setValue("photos", files, { shouldValidate: true });
     clearErrors("photos");

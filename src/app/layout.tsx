@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Providers from "@/components/Providers";
+import "@/lib/env"; // validates required env vars at startup
 
 export const metadata: Metadata = {
   title: "RentalHub NG - Off-Campus Accommodation",

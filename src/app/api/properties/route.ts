@@ -8,6 +8,8 @@ import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import type { PropertyStatus } from '@prisma/client';
+import { sanitizeText, sanitizeStringArray } from '@/lib/sanitize';
+import { logger } from '@/lib/logger';
 
 const SCHOOL_LOCATION_KEYWORDS: Record<string, string[]> = {
   'BOUESTI - Ikere-Ekiti': ['Ikere', 'Uro', 'Odo Oja', 'Afao', 'Olumilua', 'Ajebandele', 'Ikoyi Estate', 'Amoye', "Oke 'Kere"],
@@ -98,7 +100,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error('[PROPERTIES GET ERROR]', error);
+    logger.error('[PROPERTIES GET ERROR]', { error: String(error) });
     return NextResponse.json({ success: false, error: 'Failed to fetch properties.' }, { status: 500 });
   }
 }
@@ -115,6 +117,13 @@ export async function POST(request: Request) {
 
     if (session.user.role !== 'LANDLORD' && session.user.role !== 'ADMIN') {
       return NextResponse.json({ success: false, error: 'Only landlords can list properties.' }, { status: 403 });
+    }
+
+    if (session.user.role === 'LANDLORD' && session.user.verificationStatus === 'SUSPENDED') {
+      return NextResponse.json(
+        { success: false, error: 'Your account has been suspended. You cannot create new listings.' },
+        { status: 403 },
+      );
     }
 
     const body = await request.json();
@@ -134,13 +143,13 @@ export async function POST(request: Request) {
 
     const property = await prisma.property.create({
       data: {
-        title:            title.trim(),
-        description:      description.trim(),
+        title:            sanitizeText(title, 200),
+        description:      sanitizeText(description, 5000),
         price,
         locationId,
         landlordId:       session.user.id,
         distanceToCampus: distanceToCampus ? Number(distanceToCampus) : null,
-        amenities,
+        amenities:        sanitizeStringArray(amenities),
         images,
         status:           'PENDING',
       },
@@ -152,7 +161,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    console.error('[PROPERTIES POST ERROR]', error);
+    logger.error('[PROPERTIES POST ERROR]', { error: String(error) });
     return NextResponse.json({ success: false, error: 'Failed to create property.' }, { status: 500 });
   }
 }
