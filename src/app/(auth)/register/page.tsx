@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { registerUser } from "@/actions/auth.actions";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -46,21 +45,28 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const result = await registerUser({
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        role: formData.role as "STUDENT" | "LANDLORD",
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
+        }),
       });
+      const result = await response.json();
 
-      if (result.success) {
+      if (response.ok && result?.success) {
         setSuccess(result.message || "Account created successfully!");
         // Redirect to login after 2 seconds
         setTimeout(() => {
           router.push("/login");
         }, 2000);
       } else {
-        setError(result.error || "Registration failed");
+        setError(result?.error || "Registration failed");
       }
     } catch {
       setError("An error occurred during registration. Please try again.");

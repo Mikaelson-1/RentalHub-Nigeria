@@ -95,7 +95,20 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    logger.error('[REGISTER ERROR]', { error: String(error) });
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error('[REGISTER ERROR]', { error: message });
+
+    if (
+      message.includes("PrismaClientInitializationError") ||
+      message.includes("Can't reach database server") ||
+      message.includes("P1001")
+    ) {
+      return NextResponse.json(
+        { success: false, error: "Registration is temporarily unavailable. Database connection failed." },
+        { status: 503 },
+      );
+    }
+
     return NextResponse.json(
       { success: false, error: 'Internal server error. Please try again.' },
       { status: 500 },
