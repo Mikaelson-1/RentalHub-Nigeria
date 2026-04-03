@@ -14,347 +14,501 @@
 - [seed.ts](file://prisma/seed.ts)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Comprehensive documentation of the newly implemented enum system
+- Added detailed coverage of Role, VerificationStatus, PropertyStatus, and BookingStatus enums
+- Enhanced business constraint explanations with concrete enforcement mechanisms
+- Updated architecture diagrams to reflect the complete enum enforcement pipeline
+- Added practical examples of enum usage in API responses and business logic
+
 ## Table of Contents
 1. [Introduction](#introduction)
-2. [Project Structure](#project-structure)
-3. [Core Components](#core-components)
-4. [Architecture Overview](#architecture-overview)
-5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
+2. [Enum System Architecture](#enum-system-architecture)
+3. [Role Enum](#role-enum)
+4. [VerificationStatus Enum](#verificationstatus-enum)
+5. [PropertyStatus Enum](#propertystatus-enum)
+6. [BookingStatus Enum](#bookingstatus-enum)
+7. [Business Constraint Enforcement](#business-constraint-enforcement)
+8. [API Integration Patterns](#api-integration-patterns)
+9. [Client-Side Enum Handling](#client-side-enum-handling)
+10. [Database Implementation](#database-implementation)
+11. [Performance Considerations](#performance-considerations)
+12. [Troubleshooting Guide](#troubleshooting-guide)
+13. [Conclusion](#conclusion)
 
 ## Introduction
-This document details the enumerations and business constraints that govern access control and operational workflows in RentalHub-BOUESTI. It focuses on four core enums defined in the Prisma schema and enforced across API endpoints and middleware:
-- Role: STUDENT, LANDLORD, ADMIN
-- VerificationStatus: UNVERIFIED, VERIFIED, SUSPENDED
-- PropertyStatus: PENDING, APPROVED, REJECTED
-- BookingStatus: PENDING, CONFIRMED, CANCELLED
+This document provides comprehensive coverage of RentalHub-BOUESTI's enum system and business constraints that govern access control and operational workflows. The system implements four core enums defined in the Prisma schema and enforced across API endpoints, middleware, and authentication layers:
 
-These enums define who can access what, under what conditions, and how business processes evolve. The document explains constraints, validation rules, and enforcement points, and provides examples of enum usage in API responses, database queries, and business rule implementations.
+- **Role**: STUDENT, LANDLORD, ADMIN - defines user access tiers and permissions
+- **VerificationStatus**: UNVERIFIED, VERIFIED, SUSPENDED - controls account lifecycle and login eligibility  
+- **PropertyStatus**: PENDING, APPROVED, REJECTED - manages property listing lifecycle and visibility
+- **BookingStatus**: PENDING, CONFIRMED, CANCELLED - tracks booking lifecycle and availability implications
 
-## Project Structure
-The enum definitions originate from the Prisma schema and are surfaced to the application via shared TypeScript types. Business logic enforcing these enums resides in API routes, middleware, authentication callbacks, and utility helpers.
+These enums establish the foundation for secure access control, predictable business workflows, and clear system state management. The documentation explains constraint definitions, validation rules, enforcement mechanisms, and provides practical examples of enum usage in API responses, database queries, and business rule implementations.
+
+## Enum System Architecture
+The enum system follows a layered architecture with enforcement at multiple levels:
 
 ```mermaid
 graph TB
-PRISMA["Prisma Schema<br/>schema.prisma"] --> TYPES["Shared Types<br/>src/types/index.ts"]
-TYPES --> AUTH["Auth Config<br/>src/lib/auth.ts"]
-TYPES --> REGISTER["Register API<br/>src/app/api/auth/register/route.ts"]
-TYPES --> PROPS["Properties API<br/>src/app/api/properties/route.ts"]
-TYPES --> PROPSTATUS["Property Status API<br/>src/app/api/properties/[id]/status/route.ts"]
-TYPES --> BOOK["Bookings API<br/>src/app/api/bookings/route.ts"]
-AUTH --> MW["Middleware<br/>src/middleware.ts"]
-UTILS["Utils & Labels<br/>src/lib/utils.ts"] --> UI["Client-side Labels"]
-SEED["Seed Script<br/>prisma/seed.ts"] --> DB["Database"]
-PRISMA --> DB
+PRISMA["Prisma Schema<br/>schema.prisma"] --> ENUMS["Enum Definitions<br/>Role, VerificationStatus,<br/>PropertyStatus, BookingStatus"]
+ENUMS --> MODELS["Model Implementations<br/>User, Property, Booking"]
+MODELS --> DEFAULTS["Default Values<br/>Schema-level Defaults"]
+TYPES["TypeScript Types<br/>src/types/index.ts"] --> SHARED["Shared Type Definitions<br/>SafeUser, PropertyWithRelations,<br/>BookingWithRelations"]
+AUTH["Authentication Layer<br/>src/lib/auth.ts"] --> SESSION["Session Management<br/>JWT Token Enhancement"]
+REG_API["Registration API<br/>src/app/api/auth/register/route.ts"] --> VALIDATION["Input Validation<br/>Role & Password Checks"]
+PROPS_API["Properties API<br/>src/app/api/properties/route.ts"] --> ACCESS["Access Control<br/>Role-based Permissions"]
+STATUS_API["Status API<br/>src/app/api/properties/[id]/status/route.ts"] --> APPROVAL["Approval Workflow<br/>Admin-only Updates"]
+BOOK_API["Bookings API<br/>src/app/api/bookings/route.ts"] --> BUSINESS["Business Logic<br/>Availability & Duplication Checks"]
+MIDDLEWARE["Middleware<br/>src/middleware.ts"] --> ROUTE_ACCESS["Route Protection<br/>Path-based Access Control"]
+UTILS["Utilities<br/>src/lib/utils.ts"] --> LABELS["Display Labels<br/>Human-readable Enum Values"]
+PRISMA --> DB["PostgreSQL Database"]
 TYPES --> DB
 AUTH --> DB
-REGISTER --> DB
-PROPS --> DB
-PROPSTATUS --> DB
-BOOK --> DB
+REG_API --> DB
+PROPS_API --> DB
+STATUS_API --> DB
+BOOK_API --> DB
 ```
 
 **Diagram sources**
 - [schema.prisma:17-39](file://prisma/schema.prisma#L17-L39)
 - [types/index.ts:9-21](file://src/types/index.ts#L9-L21)
-- [auth.ts:12](file://src/lib/auth.ts#L12)
-- [register/route.ts:11](file://src/app/api/auth/register/route.ts#L11)
-- [properties/route.ts:10](file://src/app/api/properties/route.ts#L10)
-- [properties/[id]/status/route.ts:11](file://src/app/api/properties/[id]/status/route.ts#L11)
-- [bookings/route.ts:9](file://src/app/api/bookings/route.ts#L9)
-- [middleware.ts:8](file://src/middleware.ts#L8)
-- [utils.ts:98-117](file://src/lib/utils.ts#L98-L117)
-- [seed.ts:12](file://prisma/seed.ts#L12)
+- [auth.ts:36-94](file://src/lib/auth.ts#L36-L94)
+- [register/route.ts:20-89](file://src/app/api/auth/register/route.ts#L20-L89)
+- [properties/route.ts:15-161](file://src/app/api/properties/route.ts#L15-L161)
+- [properties/[id]/status/route.ts:17-68](file://src/app/api/properties/[id]/status/route.ts#L17-L68)
+- [bookings/route.ts:47-181](file://src/app/api/bookings/route.ts#L47-L181)
+- [middleware.ts:15-75](file://src/middleware.ts#L15-L75)
+- [utils.ts:119-138](file://src/lib/utils.ts#L119-L138)
 
-**Section sources**
-- [schema.prisma:17-39](file://prisma/schema.prisma#L17-L39)
-- [types/index.ts:9-21](file://src/types/index.ts#L9-L21)
+## Role Enum
+The Role enum defines the hierarchical access structure within RentalHub-BOUESTI:
 
-## Core Components
-This section defines each enum and its business constraints.
-
-- Role (STUDENT, LANDLORD, ADMIN)
-  - Purpose: Defines user roles and access tiers.
-  - Defaults: Users are created with STUDENT by default; ADMIN is reserved for seeding and administrative access.
-  - Enforcement: Middleware and API routes restrict access to dashboards and actions based on role.
-  - Impact: Controls which endpoints a user can reach and what operations they can perform.
-
-- VerificationStatus (UNVERIFIED, VERIFIED, SUSPENDED)
-  - Purpose: Governs account lifecycle and eligibility to log in.
-  - Defaults: Newly registered users are UNVERIFIED; seeded Admin is VERIFIED.
-  - Enforcement: Authentication rejects SUSPENDED accounts; registration sets UNVERIFIED by default.
-  - Impact: Blocks login for suspended users; prevents administrative actions until verified.
-
-- PropertyStatus (PENDING, APPROVED, REJECTED)
-  - Purpose: Manages property listing lifecycle and visibility.
-  - Defaults: New listings start as PENDING.
-  - Enforcement: Properties must be APPROVED to be visible to students; Admin controls transitions; API enforces valid status updates.
-  - Impact: Ensures only vetted properties appear in search results; prevents misuse of rejected listings.
-
-- BookingStatus (PENDING, CONFIRMED, CANCELLED)
-  - Purpose: Tracks booking lifecycle and availability implications.
-  - Defaults: New bookings start as PENDING.
-  - Enforcement: Students can only book APPROVED properties; duplicate active bookings are prevented; Admins manage confirmations.
-  - Impact: Maintains accurate availability and prevents double-booking.
-
-**Section sources**
-- [schema.prisma:44-61](file://prisma/schema.prisma#L44-L61)
-- [schema.prisma:80-108](file://prisma/schema.prisma#L80-L108)
-- [schema.prisma:111-129](file://prisma/schema.prisma#L111-L129)
-- [auth.ts:40-42](file://src/lib/auth.ts#L40-L42)
-- [register/route.ts:66](file://src/app/api/auth/register/route.ts#L66)
-- [properties/route.ts:105](file://src/app/api/properties/route.ts#L105)
-- [properties/[id]/status/route.ts:32-34](file://src/app/api/properties/[id]/status/route.ts#L32-L34)
-- [bookings/route.ts:70](file://src/app/api/bookings/route.ts#L70)
-- [bookings/route.ts:79](file://src/app/api/bookings/route.ts#L79)
-
-## Architecture Overview
-The system enforces enums at three layers:
-- Data model layer: Prisma schema defines enums and defaults.
-- API/business layer: Routes validate inputs, enforce role-based access, and apply business rules.
-- Presentation layer: Utilities provide human-readable labels and safe parsing helpers.
-
-```mermaid
-sequenceDiagram
-participant Client as "Client"
-participant Auth as "Auth API"
-participant DB as "Database"
-participant Utils as "Utils"
-Client->>Auth : "POST /api/auth/register"
-Auth->>DB : "Create user with role=STUDENT and verificationStatus=UNVERIFIED"
-DB-->>Auth : "User created"
-Auth-->>Client : "ApiResponse with role and verificationStatus"
-Client->>Auth : "Credentials login"
-Auth->>DB : "Find user by email"
-DB-->>Auth : "User record"
-Auth->>Auth : "Verify password and status != SUSPENDED"
-Auth-->>Client : "Session with role and verificationStatus"
-Utils-->>Client : "Display labels for Role and PropertyStatus"
+### Enum Definition
+```typescript
+enum Role {
+  STUDENT,    // Primary tenant seeking accommodation
+  LANDLORD,   // Property owner/listing manager
+  ADMIN       // System administrator with full privileges
+}
 ```
 
-**Diagram sources**
-- [register/route.ts:60-76](file://src/app/api/auth/register/route.ts#L60-L76)
-- [auth.ts:27-50](file://src/lib/auth.ts#L27-L50)
-- [utils.ts:98-117](file://src/lib/utils.ts#L98-L117)
+### Default Behavior
+- **New User Creation**: All new registrations default to STUDENT role
+- **Admin Creation**: ADMIN role is exclusively created via seed script or direct database access
+- **Schema Enforcement**: Prisma schema enforces Role as a required field with default value
 
-## Detailed Component Analysis
-
-### Role Enum and Access Control
-Role determines dashboard and endpoint access:
-- ADMIN-only routes: protected by middleware; only users with role ADMIN are permitted.
-- LANDLORD-only routes: accessible to LANDLORD and ADMIN.
-- STUDENT-only routes: accessible to STUDENT only.
-- API endpoints reflect role-based restrictions:
-  - Property creation requires LANDLORD or ADMIN.
-  - Booking requests require STUDENT.
-  - Property status updates require ADMIN.
-
-```mermaid
-flowchart TD
-Start(["Route Access"]) --> CheckAuth["Check session presence"]
-CheckAuth --> |No| Deny["401 Unauthorized"]
-CheckAuth --> |Yes| CheckRole["Check role"]
-CheckRole --> AdminPath{"Path starts with /admin?"}
-AdminPath --> |Yes & role!=ADMIN| Unauthorized["Redirect to /unauthorized"]
-AdminPath --> |No| LandlordPath{"Path starts with /dashboard/landlord?"}
-LandlordPath --> |Yes & role not in {LANDLORD,ADMIN}| Unauthorized
-LandlordPath --> |No| StudentPath{"Path starts with /dashboard/student?"}
-StudentPath --> |Yes & role!=STUDENT| Unauthorized
-StudentPath --> |No| Allow["Proceed to handler"]
-```
-
-**Diagram sources**
-- [middleware.ts:16-29](file://src/middleware.ts#L16-L29)
-
-**Section sources**
-- [middleware.ts:16-29](file://src/middleware.ts#L16-L29)
-- [properties/route.ts:76-78](file://src/app/api/properties/route.ts#L76-L78)
-- [bookings/route.ts:55](file://src/app/api/bookings/route.ts#L55)
-- [properties/[id]/status/route.ts:25](file://src/app/api/properties/[id]/status/route.ts#L25)
-
-### VerificationStatus Lifecycle and Login Enforcement
-VerificationStatus governs account eligibility:
-- Registration creates users with UNVERIFIED by default.
-- Login validates credentials and blocks SUSPENDED accounts.
-- Seeded Admin is VERIFIED.
-
-```mermaid
-flowchart TD
-Enter(["Login Attempt"]) --> Validate["Validate email/password"]
-Validate --> Found{"User exists?"}
-Found --> |No| NotFound["Return error"]
-Found --> |Yes| Compare["Compare hashed password"]
-Compare --> |Fail| BadPwd["Return error"]
-Compare --> |Pass| CheckStatus{"verificationStatus == SUSPENDED?"}
-CheckStatus --> |Yes| Suspended["Return error"]
-CheckStatus --> |No| Success["Create session with role and verificationStatus"]
-```
-
-**Diagram sources**
-- [auth.ts:22-50](file://src/lib/auth.ts#L22-L50)
-- [register/route.ts:60-76](file://src/app/api/auth/register/route.ts#L60-L76)
-- [seed.ts:106-121](file://prisma/seed.ts#L106-L121)
-
-**Section sources**
-- [auth.ts:40-42](file://src/lib/auth.ts#L40-L42)
-- [register/route.ts:66](file://src/app/api/auth/register/route.ts#L66)
-- [seed.ts:65-67](file://prisma/seed.ts#L65-L67)
-
-### PropertyStatus Workflow and Visibility
-PropertyStatus controls listing visibility and approval:
-- Defaults: New properties are PENDING.
-- Search defaults: Only APPROVED properties are returned.
-- Approval flow: Admin updates status to APPROVED or REJECTED.
-- Validation: Only APPROVED properties can be booked.
-
-```mermaid
-sequenceDiagram
-participant Client as "Client"
-participant API as "Properties API"
-participant DB as "Database"
-participant Admin as "Admin"
-Client->>API : "POST /api/properties"
-API->>DB : "Insert Property with status=PENDING"
-DB-->>API : "Property saved"
-API-->>Client : "201 Created with status=PENDING"
-Client->>API : "GET /api/properties?status=APPROVED"
-API->>DB : "Select properties where status=APPROVED"
-DB-->>API : "Approved listings"
-API-->>Client : "Paginated response"
-Admin->>API : "PATCH /api/properties/ : id/status { status }"
-API->>DB : "Update property status"
-DB-->>API : "Updated property"
-API-->>Admin : "Success response"
-```
-
-**Diagram sources**
-- [properties/route.ts:95-108](file://src/app/api/properties/route.ts#L95-L108)
-- [properties/route.ts:19](file://src/app/api/properties/route.ts#L19)
-- [properties/[id]/status/route.ts:32-40](file://src/app/api/properties/[id]/status/route.ts#L32-L40)
-
-**Section sources**
-- [properties/route.ts:105](file://src/app/api/properties/route.ts#L105)
-- [properties/route.ts:19](file://src/app/api/properties/route.ts#L19)
-- [properties/[id]/status/route.ts:32-34](file://src/app/api/properties/[id]/status/route.ts#L32-L34)
-- [bookings/route.ts:70](file://src/app/api/bookings/route.ts#L70)
-
-### BookingStatus and Availability Management
-BookingStatus manages booking lifecycle:
-- Defaults: New bookings are PENDING.
-- Availability: Students can only book APPROVED properties.
-- Duplicate protection: Prevents multiple active bookings (PENDING or CONFIRMED) for the same property.
-- Enforcement: API validates property status and existing bookings.
-
-```mermaid
-flowchart TD
-Start(["Create Booking"]) --> ValidateRole["Role == STUDENT?"]
-ValidateRole --> |No| Forbidden["403 Forbidden"]
-ValidateRole --> |Yes| FetchProp["Fetch property by ID"]
-FetchProp --> Exists{"Exists?"}
-Exists --> |No| NotFound["404 Not Found"]
-Exists --> |Yes| CheckStatus{"Property status == APPROVED?"}
-CheckStatus --> |No| NotAvailable["400 Not Available"]
-CheckStatus --> |Yes| CheckActive["Check existing active booking (PENDING or CONFIRMED)"]
-CheckActive --> ExistsActive{"Exists?"}
-ExistsActive --> |Yes| Conflict["409 Conflict"]
-ExistsActive --> |No| Create["Create booking with status=PENDING"]
-Create --> Done(["201 Created"])
-```
-
-**Diagram sources**
-- [bookings/route.ts:55-98](file://src/app/api/bookings/route.ts#L55-L98)
-
-**Section sources**
-- [bookings/route.ts:70](file://src/app/api/bookings/route.ts#L70)
-- [bookings/route.ts:79](file://src/app/api/bookings/route.ts#L79)
-- [bookings/route.ts:93](file://src/app/api/bookings/route.ts#L93)
-
-## Dependency Analysis
-The following diagram maps how enums and related logic depend on each other across modules.
-
+### Access Control Matrix
 ```mermaid
 graph LR
-SCHEMA["schema.prisma<br/>Enums & Defaults"] --> MODELS["Models: User, Property, Booking"]
-TYPES["types/index.ts<br/>Re-export enums"] --> AUTH["lib/auth.ts<br/>Session & JWT"]
-TYPES --> PROPS["app/api/properties/route.ts"]
-TYPES --> PROPSTATUS["app/api/properties/[id]/status/route.ts"]
-TYPES --> BOOK["app/api/bookings/route.ts"]
-TYPES --> REGISTER["app/api/auth/register/route.ts"]
-AUTH --> MW["middleware.ts"]
-UTILS["lib/utils.ts<br/>Labels & Helpers"] --> UI["Client UI"]
-SEED["prisma/seed.ts<br/>Admin seeding"] --> DB["Database"]
-MODELS --> DB
-AUTH --> DB
-PROPS --> DB
-PROPSTATUS --> DB
-BOOK --> DB
-REGISTER --> DB
+STUDENT["STUDENT<br/>• View properties<br/>• Create bookings<br/>• Manage personal profile"] --> STUDENT_PATH["/student/*"]
+LANDLORD["LANDLORD<br/>• Create properties<br/>• Manage listings<br/>• View tenant bookings"] --> LANDLORD_PATH["/landlord/*"]
+ADMIN["ADMIN<br/>• Full system access<br/>• Approve/reject properties<br/>• Manage users<br/>• System configuration"] --> ADMIN_PATH["/admin/*"]
 ```
 
 **Diagram sources**
-- [schema.prisma:17-39](file://prisma/schema.prisma#L17-L39)
-- [types/index.ts:9-21](file://src/types/index.ts#L9-L21)
-- [auth.ts:12](file://src/lib/auth.ts#L12)
-- [properties/route.ts:10](file://src/app/api/properties/route.ts#L10)
-- [properties/[id]/status/route.ts:11](file://src/app/api/properties/[id]/status/route.ts#L11)
-- [bookings/route.ts:9](file://src/app/api/bookings/route.ts#L9)
-- [register/route.ts:11](file://src/app/api/auth/register/route.ts#L11)
-- [middleware.ts:8](file://src/middleware.ts#L8)
-- [utils.ts:98-117](file://src/lib/utils.ts#L98-L117)
-- [seed.ts:12](file://prisma/seed.ts#L12)
+- [middleware.ts:6-10](file://src/middleware.ts#L6-L10)
+- [properties/route.ts:105-107](file://src/app/api/properties/route.ts#L105-L107)
+- [bookings/route.ts:55](file://src/app/api/bookings/route.ts#L55)
+- [properties/[id]/status/route.ts:26](file://src/app/api/properties/[id]/status/route.ts#L26)
+
+### API Enforcement Examples
+- **Property Creation**: Only LANDLORD or ADMIN can create properties
+- **Booking Requests**: Only STUDENT can submit booking requests  
+- **Status Updates**: Only ADMIN can approve/reject property listings
+- **Dashboard Access**: Path-based routing controlled by role
 
 **Section sources**
-- [schema.prisma:17-39](file://prisma/schema.prisma#L17-L39)
-- [types/index.ts:9-21](file://src/types/index.ts#L9-L21)
-- [auth.ts:12](file://src/lib/auth.ts#L12)
-- [properties/route.ts:10](file://src/app/api/properties/route.ts#L10)
-- [properties/[id]/status/route.ts:11](file://src/app/api/properties/[id]/status/route.ts#L11)
-- [bookings/route.ts:9](file://src/app/api/bookings/route.ts#L9)
-- [register/route.ts:11](file://src/app/api/auth/register/route.ts#L11)
-- [middleware.ts:8](file://src/middleware.ts#L8)
-- [utils.ts:98-117](file://src/lib/utils.ts#L98-L117)
-- [seed.ts:12](file://prisma/seed.ts#L12)
+- [schema.prisma:44-62](file://prisma/schema.prisma#L44-L62)
+- [register/route.ts:23](file://src/app/api/auth/register/route.ts#L23)
+- [middleware.ts:6-10](file://src/middleware.ts#L6-L10)
+- [properties/route.ts:105-107](file://src/app/api/properties/route.ts#L105-L107)
+- [bookings/route.ts:55](file://src/app/api/bookings/route.ts#L55)
+- [properties/[id]/status/route.ts:26](file://src/app/api/properties/[id]/status/route.ts#L26)
+
+## VerificationStatus Enum
+The VerificationStatus enum manages user account lifecycle and authentication eligibility:
+
+### Enum Definition
+```typescript
+enum VerificationStatus {
+  UNVERIFIED,  // New account awaiting verification
+  VERIFIED,    // Active account ready for use
+  SUSPENDED    // Account temporarily blocked
+}
+```
+
+### Lifecycle Management
+```mermaid
+stateDiagram-v2
+[*] --> UNVERIFIED : New Registration
+UNVERIFIED --> VERIFIED : Admin Verification
+VERIFIED --> SUSPENDED : Admin Action
+SUSPENDED --> VERIFIED : Appeal Process
+VERIFIED --> [*] : Account Deletion
+note right of UNVERIFIED
+Default for new registrations
+Cannot login until verified
+end note
+note right of SUSPENDED
+Account locked by administrators
+Prevents all system access
+end note
+```
+
+**Diagram sources**
+- [auth.ts:79-82](file://src/lib/auth.ts#L79-L82)
+- [register/route.ts:66](file://src/app/api/auth/register/route.ts#L66)
+- [seed.ts:106-121](file://prisma/seed.ts#L106-L121)
+
+### Authentication Enforcement
+The authentication system enforces VerificationStatus during login:
+
+```mermaid
+sequenceDiagram
+participant Client as "Client"
+participant Auth as "Auth Service"
+participant DB as "Database"
+Client->>Auth : Login Request
+Auth->>DB : Find User by Email
+DB-->>Auth : User Record
+Auth->>Auth : Verify Password
+Auth->>Auth : Check Verification Status
+alt Account Suspended
+Auth-->>Client : Error : Account Suspended
+else Account Verified
+Auth-->>Client : Session with Role & Status
+end
+```
+
+**Diagram sources**
+- [auth.ts:53-92](file://src/lib/auth.ts#L53-L92)
+
+### Registration Flow
+- **New Registrations**: Automatically set to UNVERIFIED
+- **Admin Accounts**: Directly created as VERIFIED via seed script
+- **Duplicate Prevention**: Email uniqueness enforced at database level
+
+**Section sources**
+- [schema.prisma:23-27](file://prisma/schema.prisma#L23-L27)
+- [auth.ts:79-82](file://src/lib/auth.ts#L79-L82)
+- [register/route.ts:66](file://src/app/api/auth/register/route.ts#L66)
+- [register/route.ts:50-56](file://src/app/api/auth/register/route.ts#L50-L56)
+- [seed.ts:106-121](file://prisma/seed.ts#L106-L121)
+
+## PropertyStatus Enum
+The PropertyStatus enum controls property listing lifecycle and visibility:
+
+### Enum Definition
+```typescript
+enum PropertyStatus {
+  PENDING,    // Awaiting admin review
+  APPROVED,   // Visible to students
+  REJECTED    // Hidden from public view
+}
+```
+
+### Status Management Workflow
+```mermaid
+flowchart TD
+NEW["New Property Listing"] --> PENDING["PENDING<br/>Awaiting Admin Review"]
+PENDING --> APPROVED["APPROVED<br/>Visible to Students"]
+PENDING --> REJECTED["REJECTED<br/>Hidden from Public"]
+APPROVED --> APPROVED
+REJECTED --> PENDING
+style PENDING fill:#ffeb3b
+style APPROVED fill:#4caf50
+style REJECTED fill:#f44336
+```
+
+**Diagram sources**
+- [properties/route.ts:138-151](file://src/app/api/properties/route.ts#L138-L151)
+- [properties/[id]/status/route.ts:44-57](file://src/app/api/properties/[id]/status/route.ts#L44-L57)
+
+### Visibility Control
+- **Default Status**: New properties automatically set to PENDING
+- **Search Filtering**: By default, only APPROVED properties are returned
+- **Admin Override**: Admins can view properties by status using query parameters
+- **Landlord Access**: Landlords can view their own properties regardless of status
+
+### Status Update Enforcement
+- **Authorization**: Only ADMIN can update property status
+- **Validation**: Status must be one of the three valid values
+- **Required Fields**: REJECTED status requires a rejection reason
+- **Audit Trail**: Admin who reviews property is recorded
+
+**Section sources**
+- [schema.prisma:29-33](file://prisma/schema.prisma#L29-L33)
+- [schema.prisma:91](file://prisma/schema.prisma#L91)
+- [properties/route.ts:138-151](file://src/app/api/properties/route.ts#L138-L151)
+- [properties/route.ts:30-40](file://src/app/api/properties/route.ts#L30-L40)
+- [properties/[id]/status/route.ts:33-42](file://src/app/api/properties/[id]/status/route.ts#L33-L42)
+
+## BookingStatus Enum
+The BookingStatus enum tracks booking lifecycle and availability management:
+
+### Enum Definition
+```typescript
+enum BookingStatus {
+  PENDING,     // Student submitted booking request
+  CONFIRMED,   // Landlord accepted booking
+  CANCELLED    // Booking terminated
+}
+```
+
+### Booking Lifecycle Management
+```mermaid
+stateDiagram-v2
+[*] --> PENDING : Student Request
+PENDING --> CONFIRMED : Landlord Accept
+PENDING --> CANCELLED : Student Cancel
+CONFIRMED --> CANCELLED : Student Cancel
+CONFIRMED --> CONFIRMED : Completed Stay
+note right of PENDING
+Student submits request
+Property must be APPROVED
+end note
+note right of CONFIRMED
+Landlord confirmed booking
+Property becomes unavailable
+end note
+note right of CANCELLED
+Booking terminated
+Property becomes available again
+end note
+```
+
+**Diagram sources**
+- [bookings/route.ts:89-98](file://src/app/api/bookings/route.ts#L89-L98)
+- [bookings/route.ts:158-170](file://src/app/api/bookings/route.ts#L158-L170)
+
+### Availability Enforcement
+- **Property Validation**: Only APPROVED properties can be booked
+- **Duplicate Prevention**: Students cannot have multiple active bookings for the same property
+- **Active Booking Definition**: PENDING or CONFIRMED bookings count as active
+- **Cancellation Rules**: Students can only cancel their own bookings
+
+### Role-Based Booking Operations
+- **Student Operations**: Can only create and cancel bookings
+- **Landlord Operations**: Can only confirm/reject booking requests for their properties
+- **Admin Operations**: Full access to view and manage all bookings
+
+**Section sources**
+- [schema.prisma:35-39](file://prisma/schema.prisma#L35-L39)
+- [schema.prisma:119](file://prisma/schema.prisma#L119)
+- [bookings/route.ts:65-87](file://src/app/api/bookings/route.ts#L65-L87)
+- [bookings/route.ts:143-156](file://src/app/api/bookings/route.ts#L143-L156)
+- [bookings/route.ts:158-170](file://src/app/api/bookings/route.ts#L158-L170)
+
+## Business Constraint Enforcement
+The enum system enforces business constraints through multiple layers of validation and authorization:
+
+### Data Model Constraints
+- **Schema-Level Defaults**: Enums have default values defined in Prisma schema
+- **Foreign Key Relationships**: Proper cascading deletes and referential integrity
+- **Index Optimization**: Database indexes on enum fields for efficient querying
+
+### Runtime Validation
+- **Input Sanitization**: All API endpoints validate enum values against allowed sets
+- **Authorization Checks**: Middleware and route handlers verify user roles
+- **State Validation**: Business logic ensures valid state transitions
+
+### Security Measures
+- **Session-Based Authorization**: JWT tokens carry role and verification status
+- **Path-Based Access Control**: Middleware protects dashboard routes
+- **Operation-Level Permissions**: Fine-grained control over CRUD operations
+
+**Section sources**
+- [schema.prisma:44-135](file://prisma/schema.prisma#L44-L135)
+- [auth.ts:36-118](file://src/lib/auth.ts#L36-L118)
+- [middleware.ts:15-65](file://src/middleware.ts#L15-L65)
+
+## API Integration Patterns
+The enum system integrates seamlessly with API endpoints through consistent patterns:
+
+### Standardized Response Format
+All API endpoints return structured responses with enum values:
+
+```typescript
+interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+}
+```
+
+### Enum-Specific Validation
+Each endpoint validates enum values before processing:
+
+```typescript
+// Property status validation example
+if (!['APPROVED', 'REJECTED', 'PENDING'].includes(status)) {
+  return NextResponse.json({ 
+    success: false, 
+    error: 'Invalid status value.' 
+  }, { status: 400 });
+}
+```
+
+### Role-Based Endpoint Protection
+Endpoints enforce role-based access control:
+
+```typescript
+// Example: Property creation requires LANDLORD or ADMIN
+if (session.user.role !== 'LANDLORD' && session.user.role !== 'ADMIN') {
+  return NextResponse.json({ 
+    success: false, 
+    error: 'Only landlords can list properties.' 
+  }, { status: 403 });
+}
+```
+
+**Section sources**
+- [types/index.ts:44-58](file://src/types/index.ts#L44-L58)
+- [properties/[id]/status/route.ts:33-35](file://src/app/api/properties/[id]/status/route.ts#L33-L35)
+- [properties/route.ts:105-107](file://src/app/api/properties/route.ts#L105-L107)
+
+## Client-Side Enum Handling
+Client applications receive and display enum values through utility functions:
+
+### Human-Readable Labels
+Utility functions provide user-friendly representations:
+
+```typescript
+export const ROLE_LABELS: Record<string, string> = {
+  STUDENT:  'Student',
+  LANDLORD: 'Landlord', 
+  ADMIN:    'Admin',
+};
+
+export const PROPERTY_STATUS_LABELS: Record<string, string> = {
+  PENDING:  'Pending Review',
+  APPROVED: 'Approved',
+  REJECTED: 'Rejected',
+};
+```
+
+### Conditional Styling
+Client-side components use enum values for dynamic styling:
+
+```typescript
+<span
+  className={`px-3 py-1 rounded-full text-sm font-medium ${
+    booking.status === "CONFIRMED"
+      ? "bg-green-100 text-green-800"
+      : booking.status === "PENDING"
+      ? "bg-yellow-100 text-yellow-800"
+      : "bg-red-100 text-red-800"
+  }`}
+>
+  {booking.status}
+</span>
+```
+
+**Section sources**
+- [utils.ts:119-138](file://src/lib/utils.ts#L119-L138)
+- [bookings/route.ts:274-283](file://src/app/api/bookings/route.ts#L274-L283)
+
+## Database Implementation
+The enum system is implemented at the database level with comprehensive indexing:
+
+### Schema-Level Implementation
+```sql
+-- Role enum with default
+role               Role               @default(STUDENT)
+
+-- VerificationStatus enum with default  
+verificationStatus VerificationStatus @default(UNVERIFIED)
+
+-- PropertyStatus enum with default
+status           PropertyStatus @default(PENDING)
+
+-- BookingStatus enum with default
+status           BookingStatus @default(PENDING)
+```
+
+### Database Indexes
+Optimized indexes for efficient querying:
+- `@@index([role])` - User role filtering
+- `@@index([verificationStatus])` - Status-based queries
+- `@@index([status])` - Property and booking status filtering
+- `@@index([landlordId])` - Property ownership queries
+- `@@index([studentId])` - Booking history queries
+
+### Relationship Integrity
+- **Cascade Deletes**: Proper cleanup when users or properties are removed
+- **Referential Integrity**: Foreign key constraints maintain data consistency
+- **Audit Fields**: Timestamps and reviewer information tracking
+
+**Section sources**
+- [schema.prisma:44-135](file://prisma/schema.prisma#L44-L135)
 
 ## Performance Considerations
-- Indexes on enum fields: Prisma schema indexes on role, verificationStatus, property status, and booking status improve query performance for filtering and sorting.
-- Pagination: Property listing API enforces page size limits and calculates total counts efficiently.
-- Minimal round-trips: API handlers combine reads/writes using Prisma transactions where appropriate to reduce latency.
+The enum system is designed for optimal performance through strategic optimizations:
 
-[No sources needed since this section provides general guidance]
+### Query Optimization
+- **Indexed Enum Fields**: All enum columns are indexed for fast filtering
+- **Selective Queries**: API endpoints use targeted field selection to minimize payload
+- **Pagination**: Efficient pagination with total count calculation
+
+### Memory Efficiency
+- **Minimal Payloads**: API responses include only necessary enum values
+- **Client-Side Caching**: Utility functions cache label mappings
+- **TypeScript Types**: Compile-time validation reduces runtime checks
+
+### Scalability Features
+- **Database Indexes**: Proper indexing supports growth
+- **Connection Pooling**: Prisma client connection management
+- **Error Handling**: Comprehensive error handling prevents cascading failures
 
 ## Troubleshooting Guide
-Common issues and resolutions:
-- Authentication errors for SUSPENDED accounts: Login attempts are rejected with a specific error indicating suspension.
-  - Reference: [auth.ts:40-42](file://src/lib/auth.ts#L40-L42)
-- Registration conflicts: Attempting to register with an existing email returns a conflict error.
-  - Reference: [register/route.ts:50-56](file://src/app/api/auth/register/route.ts#L50-L56)
-- Role-based access denials:
-  - Non-admin accessing admin routes: redirected to unauthorized.
-    - Reference: [middleware.ts:17-19](file://src/middleware.ts#L17-L19)
-  - Non-landlord creating properties: forbidden.
-    - Reference: [properties/route.ts:76-78](file://src/app/api/properties/route.ts#L76-L78)
-  - Non-student creating bookings: forbidden.
-    - Reference: [bookings/route.ts:55](file://src/app/api/bookings/route.ts#L55)
-- Property status errors:
-  - Updating status with invalid value: validation error.
-    - Reference: [properties/[id]/status/route.ts:32-34](file://src/app/api/properties/[id]/status/route.ts#L32-L34)
-  - Booking unavailable property: property must be APPROVED.
-    - Reference: [bookings/route.ts:70](file://src/app/api/bookings/route.ts#L70)
-- Duplicate active bookings: attempting to book the same property while having an active booking returns a conflict.
-  - Reference: [bookings/route.ts:79](file://src/app/api/bookings/route.ts#L79)
+Common issues and their solutions:
+
+### Authentication Issues
+- **Suspended Account Login**: Accounts with SUSPENDED status are rejected during authentication
+  - **Solution**: Contact administrator for account restoration
+  - **Reference**: [auth.ts:80-82](file://src/lib/auth.ts#L80-L82)
+
+### Registration Conflicts
+- **Duplicate Email**: Attempting to register with existing email triggers conflict error
+  - **Solution**: Use different email address or reset password
+  - **Reference**: [register/route.ts:50-56](file://src/app/api/auth/register/route.ts#L50-L56)
+
+### Role-Based Access Denied
+- **Non-Admin Admin Access**: Users without ADMIN role accessing admin routes are redirected
+  - **Solution**: Log in with appropriate credentials
+  - **Reference**: [middleware.ts:47-60](file://src/middleware.ts#L47-L60)
+
+### Property Status Errors
+- **Invalid Status Update**: Attempting to set property to non-existent status fails validation
+  - **Solution**: Use only APPROVED, REJECTED, or PENDING values
+  - **Reference**: [properties/[id]/status/route.ts:33-35](file://src/app/api/properties/[id]/status/route.ts#L33-L35)
+
+### Booking Conflicts
+- **Duplicate Active Bookings**: Students cannot have multiple active bookings for same property
+  - **Solution**: Cancel existing booking or choose different property
+  - **Reference**: [bookings/route.ts:82-86](file://src/app/api/bookings/route.ts#L82-L86)
 
 **Section sources**
-- [auth.ts:40-42](file://src/lib/auth.ts#L40-L42)
+- [auth.ts:80-82](file://src/lib/auth.ts#L80-L82)
 - [register/route.ts:50-56](file://src/app/api/auth/register/route.ts#L50-L56)
-- [middleware.ts:17-19](file://src/middleware.ts#L17-L19)
-- [properties/route.ts:76-78](file://src/app/api/properties/route.ts#L76-L78)
-- [bookings/route.ts:55](file://src/app/api/bookings/route.ts#L55)
-- [properties/[id]/status/route.ts:32-34](file://src/app/api/properties/[id]/status/route.ts#L32-L34)
-- [bookings/route.ts:70](file://src/app/api/bookings/route.ts#L70)
-- [bookings/route.ts:79](file://src/app/api/bookings/route.ts#L79)
+- [middleware.ts:47-60](file://src/middleware.ts#L47-L60)
+- [properties/[id]/status/route.ts:33-35](file://src/app/api/properties/[id]/status/route.ts#L33-L35)
+- [bookings/route.ts:82-86](file://src/app/api/bookings/route.ts#L82-L86)
 
 ## Conclusion
-RentalHub-BOUESTI’s business logic is anchored in four core enums that define roles, verification states, property listing states, and booking states. These enums are consistently enforced across the Prisma schema, API routes, authentication callbacks, and middleware. Together, they ensure secure access control, predictable workflows, and clear visibility of system state. Developers should continue to rely on these enums when adding new features to maintain consistency and prevent regressions.
+RentalHub-BOUESTI's enum system provides a robust foundation for access control and business workflow management. The four core enums—Role, VerificationStatus, PropertyStatus, and BookingStatus—work together to create a secure, predictable, and scalable platform. Through comprehensive enforcement at the database, API, authentication, and middleware layers, the system ensures data integrity, prevents unauthorized access, and maintains clear business state transitions.
+
+The implementation demonstrates best practices in enum usage, including schema-level defaults, comprehensive validation, role-based access control, and user-friendly client-side presentation. This foundation enables developers to build new features confidently while maintaining system consistency and preventing regressions.
+
+Key benefits of the current implementation:
+- **Security**: Multi-layered authorization prevents unauthorized access
+- **Scalability**: Indexed enum fields support growing user base
+- **Maintainability**: Clear separation of concerns across layers
+- **User Experience**: Consistent status indicators and meaningful error messages
+- **Data Integrity**: Proper foreign key relationships and cascade operations
+
+Future enhancements could include additional enum values for expanded functionality, more granular permission levels, or advanced audit logging capabilities. However, the current system provides a solid foundation for all RentalHub-BOUESTI operations.

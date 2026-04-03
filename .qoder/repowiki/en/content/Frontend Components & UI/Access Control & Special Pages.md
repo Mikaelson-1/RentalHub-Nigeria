@@ -3,7 +3,7 @@
 <cite>
 **Referenced Files in This Document**
 - [middleware.ts](file://src/middleware.ts)
-- [page.tsx](file://src/app/unauthorized/page.tsx)
+- [page.tsx](file://src/app/pending-approval/page.tsx)
 - [auth.ts](file://src/lib/auth.ts)
 - [route.ts](file://src/app/api/auth/[...nextauth]/route.ts)
 - [layout.tsx](file://src/app/layout.tsx)
@@ -11,7 +11,19 @@
 - [page.tsx](file://src/app/register/page.tsx)
 - [route.ts](file://src/app/api/auth/register/route.ts)
 - [schema.prisma](file://prisma/schema.prisma)
+- [layout.tsx](file://src/app/(dashboards)/layout.tsx)
+- [page.tsx](file://src/app/(dashboards)/student/page.tsx)
+- [page.tsx](file://src/app/(dashboards)/landlord/page.tsx)
+- [page.tsx](file://src/app/(dashboards)/admin/page.tsx)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Added documentation for new pending approval page functionality
+- Updated role-based dashboard architecture with three distinct role-specific dashboards
+- Enhanced middleware access control patterns with role-based routing
+- Expanded authentication integration with verification status handling
+- Updated access control patterns to include pending approval workflows
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -25,15 +37,16 @@
 9. [Conclusion](#conclusion)
 
 ## Introduction
-This document explains the unauthorized access handling and special pages functionality in the RentalHub BOUESTI application. It covers how the system prevents unauthorized access to protected routes, how the unauthorized page is triggered and presented, and how users can recover from access-denied scenarios. The documentation focuses on the middleware protection mechanism, role-based visibility controls, session validation, and the user experience considerations for access-denied situations.
+This document explains the unauthorized access handling and special pages functionality in the RentalHub BOUESTI application. The system now includes comprehensive access control with role-based dashboards, pending approval workflows, and specialized pages for different user states. It covers how the system prevents unauthorized access to protected routes, handles pending approval scenarios, and provides role-specific user experiences through dedicated dashboards.
 
 ## Project Structure
-The access control and special pages functionality spans several key areas:
+The access control and special pages functionality spans several key areas with enhanced role-based architecture:
 - Middleware that enforces authentication and role-based access to protected routes
-- An unauthorized page that informs users when they lack permission
-- Authentication configuration that manages sessions and roles
-- Login and registration pages that integrate with the authentication system
-- Database schema that defines user roles and verification statuses
+- Pending approval page for users awaiting administrative review
+- Three role-specific dashboards (student, landlord, admin) with distinct functionality
+- Authentication configuration that manages sessions, roles, and verification statuses
+- Login and registration pages integrated with the access control system
+- Database schema defining user roles, verification statuses, and access hierarchies
 
 ```mermaid
 graph TB
@@ -44,266 +57,351 @@ subgraph "Authentication Layer"
 AUTH["lib/auth.ts<br/>NextAuth Config"]
 NEXTAUTH_ROUTE["app/api/auth/[...nextauth]/route.ts<br/>NextAuth Handler"]
 end
+subgraph "Role-Based Dashboards"
+STUDENT_DASH["/student<br/>Student Dashboard"]
+LANDLORD_DASH["/landlord<br/>Landlord Dashboard"]
+ADMIN_DASH["/admin<br/>Admin Dashboard"]
+end
+subgraph "Special Access Pages"
+PENDING["/pending-approval<br/>Pending Approval Page"]
+LOGIN["/login<br/>Login Page"]
+REGISTER["/register<br/>Registration Page"]
+end
 subgraph "Protected Routes"
-ADMIN["/admin/*"]
-DASHBOARD_LANDLORD["/dashboard/landlord/*"]
-DASHBOARD_STUDENT["/dashboard/student/*"]
-PROPERTIES_NEW["/properties/new"]
-BOOKINGS["/bookings/*"]
+PROTECTED_ROUTES["Protected Route Groups:<br/>/student/*, /landlord/*, /admin/*"]
 end
-subgraph "Special Pages"
-UNAUTH["/unauthorized<br/>page.tsx"]
-LOGIN["/login<br/>page.tsx"]
-REGISTER["/register<br/>page.tsx"]
-end
-MW --> ADMIN
-MW --> DASHBOARD_LANDLORD
-MW --> DASHBOARD_STUDENT
-MW --> PROPERTIES_NEW
-MW --> BOOKINGS
-MW --> UNAUTH
+MW --> PROTECTED_ROUTES
+PROTECTED_ROUTES --> STUDENT_DASH
+PROTECTED_ROUTES --> LANDLORD_DASH
+PROTECTED_ROUTES --> ADMIN_DASH
+MW --> PENDING
 AUTH --> NEXTAUTH_ROUTE
 NEXTAUTH_ROUTE --> LOGIN
 NEXTAUTH_ROUTE --> REGISTER
 ```
 
 **Diagram sources**
-- [middleware.ts:1-48](file://src/middleware.ts#L1-L48)
-- [auth.ts:1-117](file://src/lib/auth.ts#L1-L117)
+- [middleware.ts:1-76](file://src/middleware.ts#L1-L76)
+- [auth.ts:1-119](file://src/lib/auth.ts#L1-L119)
 - [route.ts:1-7](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
-- [page.tsx:1-35](file://src/app/unauthorized/page.tsx#L1-L35)
+- [page.tsx:1-82](file://src/app/pending-approval/page.tsx#L1-L82)
 - [page.tsx:1-116](file://src/app/login/page.tsx#L1-L116)
 - [page.tsx:1-128](file://src/app/register/page.tsx#L1-L128)
+- [layout.tsx:1-19](file://src/app/(dashboards)/layout.tsx#L1-L19)
+- [page.tsx:1-303](file://src/app/(dashboards)/student/page.tsx#L1-L303)
+- [page.tsx:1-296](file://src/app/(dashboards)/landlord/page.tsx#L1-L296)
+- [page.tsx:1-247](file://src/app/(dashboards)/admin/page.tsx#L1-L247)
 
 **Section sources**
-- [middleware.ts:1-48](file://src/middleware.ts#L1-L48)
-- [auth.ts:1-117](file://src/lib/auth.ts#L1-L117)
-- [page.tsx:1-35](file://src/app/unauthorized/page.tsx#L1-L35)
+- [middleware.ts:1-76](file://src/middleware.ts#L1-L76)
+- [auth.ts:1-119](file://src/lib/auth.ts#L1-L119)
+- [page.tsx:1-82](file://src/app/pending-approval/page.tsx#L1-L82)
 - [page.tsx:1-116](file://src/app/login/page.tsx#L1-L116)
 - [page.tsx:1-128](file://src/app/register/page.tsx#L1-L128)
+- [layout.tsx:1-19](file://src/app/(dashboards)/layout.tsx#L1-L19)
+- [page.tsx:1-303](file://src/app/(dashboards)/student/page.tsx#L1-L303)
+- [page.tsx:1-296](file://src/app/(dashboards)/landlord/page.tsx#L1-L296)
+- [page.tsx:1-247](file://src/app/(dashboards)/admin/page.tsx#L1-L247)
 - [route.ts:1-7](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
 - [layout.tsx:1-42](file://src/app/layout.tsx#L1-L42)
 
 ## Core Components
-- Middleware protection: Enforces authentication and role-based access to protected routes. Redirects unauthorized users to the unauthorized page.
-- Unauthorized page: A dedicated page that explains why access was denied and offers navigation options back to public content.
-- Authentication configuration: Manages session creation, role propagation, and redirects on authentication errors.
-- Login and registration pages: Integrate with the authentication system to enable user onboarding and re-authentication.
-- Database schema: Defines roles (STUDENT, LANDLORD, ADMIN) and verification statuses that influence access decisions.
+- **Enhanced Middleware Protection**: Enforces authentication and role-based access to protected routes with three distinct role categories (STUDENT, LANDLORD, ADMIN)
+- **Pending Approval Page**: Dedicated page for users whose accounts are under administrative review, providing clear messaging and next steps
+- **Role-Based Dashboard System**: Three specialized dashboards with distinct functionality for students, landlords, and administrators
+- **Advanced Authentication Configuration**: Manages session creation, role propagation, verification status handling, and redirects on authentication errors
+- **Comprehensive Access Control**: Integrates middleware protection with role-specific routing and verification workflows
+- **Database Schema Integration**: Defines roles, verification statuses, and access hierarchies that drive the entire access control system
 
 **Section sources**
-- [middleware.ts:11-38](file://src/middleware.ts#L11-L38)
-- [page.tsx:9-34](file://src/app/unauthorized/page.tsx#L9-L34)
-- [auth.ts:75-79](file://src/lib/auth.ts#L75-L79)
-- [page.tsx:1-116](file://src/app/login/page.tsx#L1-L116)
-- [page.tsx:1-128](file://src/app/register/page.tsx#L1-L128)
+- [middleware.ts:5-10](file://src/middleware.ts#L5-L10)
+- [page.tsx:5-82](file://src/app/pending-approval/page.tsx#L5-L82)
+- [layout.tsx:1-19](file://src/app/(dashboards)/layout.tsx#L1-L19)
+- [auth.ts:36-45](file://src/lib/auth.ts#L36-L45)
+- [auth.ts:79-82](file://src/lib/auth.ts#L79-L82)
 - [schema.prisma:17-27](file://prisma/schema.prisma#L17-L27)
 
 ## Architecture Overview
-The access control architecture combines middleware-based route protection with NextAuth.js for session management and role propagation. When a user attempts to access a protected route:
-1. Middleware checks the request path against configured matchers and validates the user's role.
-2. If the user lacks permission, they are redirected to the unauthorized page.
-3. If the user is not authenticated, NextAuth middleware handles redirection to the login page.
-4. The unauthorized page provides clear messaging and navigation options to recover from the access-denied scenario.
+The enhanced access control architecture combines middleware-based route protection with role-specific dashboards and pending approval workflows. When a user attempts to access protected content:
+1. Middleware checks authentication and role requirements based on route prefixes
+2. Users with pending verification are directed to the pending approval page
+3. Authorized users are redirected to their role-specific dashboard
+4. The system maintains clear separation between different user types and their access levels
 
 ```mermaid
 sequenceDiagram
 participant Browser as "Browser"
 participant MW as "Middleware"
-participant NextAuth as "NextAuth"
-participant Unauth as "Unauthorized Page"
-participant Login as "Login Page"
+participant Auth as "Authentication System"
+participant Pending as "Pending Approval Page"
+participant Dashboard as "Role Dashboard"
 Browser->>MW : Request protected route
-MW->>MW : Check pathname and token.role
-alt Not authenticated
-MW->>NextAuth : Redirect to NextAuth callback
-NextAuth-->>Login : Redirect to /login
-else Authenticated but insufficient role
-MW->>Unauth : Redirect to /unauthorized
-else Authorized
-MW-->>Browser : Allow access
+MW->>MW : Check pathname against role rules
+alt No authentication token
+MW->>Auth : Redirect to NextAuth callback
+Auth-->>Browser : Redirect to /login
+else Has token but pending verification
+MW->>Pending : Redirect to /pending-approval
+Pending-->>Browser : Show pending approval page
+else Has valid token with role
+MW->>Dashboard : Redirect to role-specific dashboard
+Dashboard-->>Browser : Load appropriate dashboard
 end
 ```
 
 **Diagram sources**
-- [middleware.ts:11-38](file://src/middleware.ts#L11-L38)
-- [auth.ts:75-79](file://src/lib/auth.ts#L75-L79)
-- [page.tsx:1-35](file://src/app/unauthorized/page.tsx#L1-L35)
-- [page.tsx:1-116](file://src/app/login/page.tsx#L1-L116)
+- [middleware.ts:15-66](file://src/middleware.ts#L15-L66)
+- [auth.ts:95-112](file://src/lib/auth.ts#L95-L112)
+- [page.tsx:5-82](file://src/app/pending-approval/page.tsx#L5-L82)
 
 ## Detailed Component Analysis
 
-### Unauthorized Page Component
-The unauthorized page serves as the designated response when users attempt to access restricted content without proper authentication or permissions. It presents:
-- A clear title indicating access denial
-- A friendly message explaining the lack of permission
-- Navigation options to return to public content or sign in
+### Pending Approval Page Component
+The pending approval page serves as the designated response for users whose accounts are under administrative review. This page provides clear communication about the review process and expected timelines:
+
+- **Clear Status Communication**: Uses prominent orange and blue color scheme to indicate pending status
+- **Process Explanation**: Provides step-by-step explanation of the review process with timeline expectations
+- **Actionable Information**: Includes contact information for support inquiries
+- **Navigation Options**: Offers immediate return to home page for non-logged-in users
 
 ```mermaid
 flowchart TD
-Start(["User visits protected route"]) --> CheckAuth["Middleware checks authentication"]
-CheckAuth --> AuthOK{"Authenticated?"}
+Start(["User accesses protected route"]) --> CheckAuth["Middleware checks authentication"]
+CheckAuth --> AuthOK{"Has valid token?"}
 AuthOK --> |No| RedirectLogin["Redirect to /login"]
-AuthOK --> |Yes| CheckRole["Check role-based access"]
+AuthOK --> |Yes| CheckVerification["Check verification status"]
+CheckVerification --> Verified{"Is verified?"}
+Verified --> |No| RedirectPending["Redirect to /pending-approval"]
+Verified --> |Yes| CheckRole["Check role-based access"]
 CheckRole --> RoleOK{"Authorized for route?"}
-RoleOK --> |Yes| Allow["Allow access"]
-RoleOK --> |No| RedirectUnauth["Redirect to /unauthorized"]
-RedirectUnauth --> ShowPage["Render Unauthorized Page"]
-ShowPage --> Options["Offer navigation options"]
-Options --> Home["Go Home"]
-Options --> SignIn["Sign In"]
+RoleOK --> |Yes| Allow["Allow access to dashboard"]
+RoleOK --> |No| RedirectDashboard["Redirect to role dashboard"]
+RedirectPending --> ShowPending["Render Pending Approval Page"]
+ShowPending --> Options["Provide recovery options"]
+Options --> Home["Return to Home"]
+Options --> Support["Contact Support"]
 ```
 
 **Diagram sources**
-- [middleware.ts:11-38](file://src/middleware.ts#L11-L38)
-- [page.tsx:9-34](file://src/app/unauthorized/page.tsx#L9-L34)
+- [middleware.ts:28-42](file://src/middleware.ts#L28-L42)
+- [page.tsx:5-82](file://src/app/pending-approval/page.tsx#L5-L82)
+- [auth.ts:79-82](file://src/lib/auth.ts#L79-L82)
 
 **Section sources**
-- [page.tsx:4-7](file://src/app/unauthorized/page.tsx#L4-L7)
-- [page.tsx:10-34](file://src/app/unauthorized/page.tsx#L10-L34)
+- [page.tsx:6-82](file://src/app/pending-approval/page.tsx#L6-L82)
 
-### Middleware Protection and Redirect Mechanisms
-The middleware enforces access control by:
-- Matching protected routes using a predefined matcher list
-- Checking the user's role from the session token
-- Redirecting to the unauthorized page when role requirements are not met
-- Leveraging NextAuth middleware for authentication gating
+### Role-Based Dashboard Architecture
+The system now provides three distinct dashboards, each tailored to the specific needs and permissions of different user roles:
 
-Key behaviors:
-- Admin-only routes require ADMIN role
-- Landlord-only routes require LANDLORD or ADMIN role
-- Student-only routes require STUDENT role
-- Non-matching routes continue to NextResponse.next()
+#### Student Dashboard
+- **Property Browsing**: Comprehensive property listings with filtering and search capabilities
+- **Booking Management**: Complete booking lifecycle from request to cancellation
+- **Profile Integration**: Direct connection between student profile and booking activities
+- **Responsive Design**: Mobile-first approach optimized for student usage patterns
 
-**Section sources**
-- [middleware.ts:11-38](file://src/middleware.ts#L11-L38)
-- [middleware.ts:40-47](file://src/middleware.ts#L40-L47)
+#### Landlord Dashboard  
+- **Listing Management**: Full property listing lifecycle with status tracking
+- **Tenant Request Handling**: Real-time management of booking requests with approval/rejection workflows
+- **Analytics Overview**: Key metrics including total listings, approved properties, and pending requests
+- **Add Property Functionality**: Streamlined property addition process with form validation
 
-### Access Control Patterns and Role-Based Visibility
-Access control relies on:
-- Pathname prefixes to identify protected areas
-- Token-based role checks to enforce visibility
-- Role enumeration from the database schema
-
-Patterns:
-- Prefix-based route matching for admin, landlord, and student dashboards
-- Hierarchical role precedence (ADMIN supersedes LANDLORD)
-- Explicit role enforcement for sensitive routes like property creation and bookings
+#### Admin Dashboard
+- **Platform Overview**: High-level analytics including total properties, users, and bookings
+- **Content Moderation**: Pending property approvals with detailed review capabilities
+- **User Management**: Platform administration tools and oversight capabilities
+- **System Analytics**: Comprehensive reporting and monitoring capabilities
 
 **Section sources**
-- [middleware.ts:16-29](file://src/middleware.ts#L16-L29)
-- [schema.prisma:17-21](file://prisma/schema.prisma#L17-L21)
+- [layout.tsx:1-19](file://src/app/(dashboards)/layout.tsx#L1-L19)
+- [page.tsx:1-303](file://src/app/(dashboards)/student/page.tsx#L1-L303)
+- [page.tsx:1-296](file://src/app/(dashboards)/landlord/page.tsx#L1-L296)
+- [page.tsx:1-247](file://src/app/(dashboards)/admin/page.tsx#L1-L247)
 
-### Integration with Middleware Protection and Session Validation
-The unauthorized page integrates with middleware protection through:
-- Middleware redirect logic that sends unauthorized users to /unauthorized
-- NextAuth middleware that ensures only authenticated users reach protected routes
-- Session callbacks that propagate role and verification status to the client
+### Enhanced Middleware Protection and Redirect Mechanisms
+The middleware now implements sophisticated role-based routing with the following enhanced behaviors:
 
-```mermaid
-sequenceDiagram
-participant Client as "Client"
-participant Middleware as "Middleware"
-participant NextAuth as "NextAuth"
-participant Unauthorized as "Unauthorized Page"
-Client->>Middleware : Navigate to /admin/dashboard
-Middleware->>NextAuth : Verify token presence
-NextAuth-->>Middleware : Token with role
-Middleware->>Middleware : Compare token.role vs required role
-alt Insufficient role
-Middleware->>Unauthorized : Redirect to /unauthorized
-else Sufficient role
-Middleware-->>Client : Proceed
-end
-```
+#### Role-Based Access Rules
+- **STUDENT routes**: Restricted to STUDENT role users
+- **LANDLORD routes**: Restricted to LANDLORD or ADMIN role users  
+- **ADMIN routes**: Restricted to ADMIN role users only
 
-**Diagram sources**
-- [middleware.ts:11-38](file://src/middleware.ts#L11-L38)
-- [auth.ts:55-72](file://src/lib/auth.ts#L55-L72)
+#### Intelligent Redirection Logic
+- **Insufficient Role**: Redirects users to their appropriate dashboard instead of generic unauthorized page
+- **Pending Verification**: Redirects users with UNVERIFIED status to pending approval page
+- **Unknown Roles**: Falls back to login page for malformed or invalid tokens
+
+#### Route Matcher Configuration
+Configured to monitor all protected route groups with precise path matching for optimal performance.
 
 **Section sources**
-- [middleware.ts:13-18](file://src/middleware.ts#L13-L18)
-- [auth.ts:55-72](file://src/lib/auth.ts#L55-L72)
+- [middleware.ts:5-10](file://src/middleware.ts#L5-L10)
+- [middleware.ts:15-66](file://src/middleware.ts#L15-L66)
+- [middleware.ts:68-76](file://src/middleware.ts#L68-L76)
 
-### User Experience Considerations for Access-Denied Scenarios
-The unauthorized page is designed to:
-- Clearly communicate the access denial
-- Provide actionable recovery options
-- Maintain a consistent visual theme with the rest of the application
-- Offer immediate navigation back to public content
+### Advanced Access Control Patterns and Role Hierarchies
+The access control system now implements a comprehensive role hierarchy with the following patterns:
 
-Navigation options include:
-- Go Home: Return to the main landing page
-- Sign In: Access the login page for re-authentication
+#### Hierarchical Role Precedence
+- **ADMIN**: Highest privilege level with full system access
+- **LANDLORD**: Property management capabilities with tenant interaction
+- **STUDENT**: Limited access focused on property browsing and booking
 
-**Section sources**
-- [page.tsx:17-19](file://src/app/unauthorized/page.tsx#L17-L19)
-- [page.tsx:20-22](file://src/app/unauthorized/page.tsx#L20-L22)
-- [page.tsx:23-30](file://src/app/unauthorized/page.tsx#L23-L30)
+#### Route Grouping Strategy
+- **Prefix-based Routing**: `/student`, `/landlord`, `/admin` prefixes determine access levels
+- **Nested Route Protection**: All sub-routes inherit parent route's access restrictions
+- **Dynamic Role Resolution**: Real-time role checking prevents unauthorized access attempts
 
-### Authentication Integration and Recovery Options
-The authentication system supports recovery from access-denied scenarios by:
-- Redirecting unauthenticated users to the login page
-- Propagating role and verification status through JWT and session callbacks
-- Providing registration options for new users
-
-Recovery pathways:
-- Unauthenticated users are redirected to the login page
-- Authenticated users with insufficient roles are redirected to the unauthorized page
-- Users can create accounts via the registration page
+#### Verification Status Integration
+- **UNVERIFIED**: Users are redirected to pending approval page
+- **VERIFIED**: Standard role-based access applies
+- **SUSPENDED**: Account suspension prevents all access attempts
 
 **Section sources**
-- [auth.ts:75-79](file://src/lib/auth.ts#L75-L79)
+- [middleware.ts:5-10](file://src/middleware.ts#L5-L10)
+- [middleware.ts:44-62](file://src/middleware.ts#L44-L62)
+- [auth.ts:79-82](file://src/lib/auth.ts#L79-L82)
+- [schema.prisma:17-27](file://prisma/schema.prisma#L17-L27)
+
+### Authentication Integration and Verification Workflows
+The authentication system now includes comprehensive verification status handling:
+
+#### Enhanced JWT Token Structure
+- **Extended Claims**: Includes role and verification status in JWT payload
+- **Session Propagation**: Verification status maintained across all session operations
+- **Real-time Updates**: Verification status changes immediately affect access permissions
+
+#### Verification Status Handling
+- **Account Creation**: New users automatically receive VERIFIED status
+- **Suspension Handling**: SUSPENDED accounts are blocked from all access attempts
+- **Review Process**: UNVERIFIED users are guided through pending approval workflow
+
+#### Integration Points
+- **Token Callbacks**: Custom JWT and session callbacks handle verification status propagation
+- **Authorization Flow**: Verification status checked during user authorization process
+- **Session Validation**: Verification status validated on every request requiring authentication
+
+**Section sources**
+- [auth.ts:95-112](file://src/lib/auth.ts#L95-L112)
+- [auth.ts:79-82](file://src/lib/auth.ts#L79-L82)
+- [auth.ts:36-45](file://src/lib/auth.ts#L36-L45)
+
+### User Experience Considerations for Access-Controlled Scenarios
+The enhanced system provides comprehensive user experience considerations:
+
+#### Role-Based User Journeys
+- **Students**: Seamless property browsing and booking with minimal friction
+- **Landlords**: Streamlined property management with clear approval workflows
+- **Administrators**: Comprehensive oversight tools with detailed analytics
+
+#### Pending Approval Experience
+- **Clear Communication**: Detailed explanation of review process and timeline
+- **Support Integration**: Direct contact information for support inquiries
+- **Progress Indication**: Visual indicators showing current stage in approval process
+
+#### Recovery and Navigation Options
+- **Intelligent Redirection**: Users always directed to most appropriate page based on their state
+- **Consistent Branding**: Unified design language across all access-controlled pages
+- **Immediate Action**: Clear calls-to-action for next steps in user journey
+
+**Section sources**
+- [page.tsx:27-36](file://src/app/pending-approval/page.tsx#L27-L36)
+- [page.tsx:40-61](file://src/app/pending-approval/page.tsx#L40-L61)
+- [page.tsx:64-69](file://src/app/pending-approval/page.tsx#L64-L69)
+
+### Enhanced Authentication Integration and Recovery Options
+The authentication system now supports comprehensive recovery from access-controlled scenarios:
+
+#### Multi-Level Recovery Paths
+- **Authentication Failures**: Redirect to login page with callback URL preservation
+- **Role Insufficiency**: Redirect to appropriate dashboard for role escalation
+- **Verification Pending**: Redirect to pending approval page with clear messaging
+- **Account Suspension**: Clear messaging about suspension status and appeal process
+
+#### Registration and Onboarding Integration
+- **Role-Specific Registration**: Separate flows for STUDENT and LANDLORD registration
+- **Verification Workflow**: Automated verification status assignment for new accounts
+- **Onboarding Guidance**: Contextual help and guidance throughout registration process
+
+#### Session Management Enhancements
+- **Token Expiration Handling**: Graceful handling of expired authentication sessions
+- **Cross-Device Synchronization**: Verification status synchronized across all devices
+- **Security Integration**: Integration with security policies and access logging
+
+**Section sources**
+- [auth.ts:36-45](file://src/lib/auth.ts#L36-L45)
+- [auth.ts:95-112](file://src/lib/auth.ts#L95-L112)
+- [route.ts:1-90](file://src/app/api/auth/register/route.ts#L1-L90)
 - [page.tsx:1-116](file://src/app/login/page.tsx#L1-L116)
 - [page.tsx:1-128](file://src/app/register/page.tsx#L1-L128)
-- [route.ts:1-90](file://src/app/api/auth/register/route.ts#L1-L90)
 
 ## Dependency Analysis
-The access control system exhibits the following dependencies:
-- Middleware depends on NextAuth middleware for authentication gating
-- Unauthorized page depends on middleware redirect logic
-- Authentication configuration depends on database schema for role and verification status
-- Login and registration pages depend on NextAuth handlers for authentication flows
+The enhanced access control system exhibits sophisticated dependency relationships:
 
 ```mermaid
 graph LR
-MW["middleware.ts"] --> NA["lib/auth.ts"]
-NA --> SCHEMA["prisma/schema.prisma"]
-MW --> UNAUTH["app/unauthorized/page.tsx"]
-NA --> NEXTAUTH_ROUTE["app/api/auth/[...nextauth]/route.ts"]
+MW["middleware.ts"] --> AUTH["lib/auth.ts"]
+MW --> DASH_LAYOUT["(dashboards)/layout.tsx"]
+AUTH --> SCHEMA["prisma/schema.prisma"]
+MW --> PENDING["pending-approval/page.tsx"]
+AUTH --> NEXTAUTH_ROUTE["app/api/auth/[...nextauth]/route.ts"]
 NEXTAUTH_ROUTE --> LOGIN["app/login/page.tsx"]
 NEXTAUTH_ROUTE --> REGISTER["app/register/page.tsx"]
+MW --> STUDENT_DASH["(dashboards)/student/page.tsx"]
+MW --> LANDLORD_DASH["(dashboards)/landlord/page.tsx"]
+MW --> ADMIN_DASH["(dashboards)/admin/page.tsx"]
 ```
 
 **Diagram sources**
-- [middleware.ts:11-38](file://src/middleware.ts#L11-L38)
-- [auth.ts:14-90](file://src/lib/auth.ts#L14-L90)
-- [schema.prisma:17-27](file://prisma/schema.prisma#L17-L27)
-- [page.tsx:1-35](file://src/app/unauthorized/page.tsx#L1-L35)
+- [middleware.ts:1-76](file://src/middleware.ts#L1-L76)
+- [auth.ts:1-119](file://src/lib/auth.ts#L1-L119)
+- [schema.prisma:1-136](file://prisma/schema.prisma#L1-L136)
+- [page.tsx:1-82](file://src/app/pending-approval/page.tsx#L1-L82)
 - [route.ts:1-7](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
 - [page.tsx:1-116](file://src/app/login/page.tsx#L1-L116)
 - [page.tsx:1-128](file://src/app/register/page.tsx#L1-L128)
+- [layout.tsx:1-19](file://src/app/(dashboards)/layout.tsx#L1-L19)
+- [page.tsx:1-303](file://src/app/(dashboards)/student/page.tsx#L1-L303)
+- [page.tsx:1-296](file://src/app/(dashboards)/landlord/page.tsx#L1-L296)
+- [page.tsx:1-247](file://src/app/(dashboards)/admin/page.tsx#L1-L247)
 
 **Section sources**
-- [middleware.ts:11-38](file://src/middleware.ts#L11-L38)
-- [auth.ts:14-90](file://src/lib/auth.ts#L14-L90)
-- [schema.prisma:17-27](file://prisma/schema.prisma#L17-L27)
+- [middleware.ts:1-76](file://src/middleware.ts#L1-L76)
+- [auth.ts:1-119](file://src/lib/auth.ts#L1-L119)
+- [schema.prisma:1-136](file://prisma/schema.prisma#L1-L136)
 
 ## Performance Considerations
-- Middleware runs at edge runtime and performs lightweight checks (pathname matching and role comparison), minimizing overhead.
-- Role checks rely on the token stored in the session, avoiding repeated database lookups for access decisions.
-- The unauthorized page is static and does not require server-side computation, keeping load times low.
+The enhanced system maintains optimal performance through several optimizations:
+
+- **Middleware Efficiency**: Lightweight role checking with minimal computational overhead
+- **Role-Based Caching**: Token-based role resolution avoids repeated database queries
+- **Dashboard Optimization**: Each dashboard optimized for its specific user type and data requirements
+- **Pending Approval Minimization**: Streamlined approval process reduces user wait times
+- **Session Management**: Efficient JWT token handling with automatic expiration and renewal
 
 ## Troubleshooting Guide
-Common issues and resolutions:
-- Users stuck on the unauthorized page: Verify the user's role in the database and ensure the middleware matcher includes the intended route.
-- Authentication failures: Confirm NextAuth configuration and session callbacks are functioning correctly.
-- Registration errors: Check the registration API endpoint for validation errors and database constraints.
+Enhanced troubleshooting procedures for the expanded access control system:
+
+### Common Issues and Resolutions
+- **Users stuck on pending approval page**: Verify user verification status in database and ensure middleware correctly identifies UNVERIFIED status
+- **Role-based access failures**: Check middleware route access rules and ensure user role matches required permissions
+- **Dashboard redirection loops**: Verify role-specific dashboard routes and ensure proper authentication state
+- **Verification status synchronization**: Confirm JWT callbacks are properly propagating verification status across sessions
+- **Registration workflow issues**: Check registration API endpoint for proper role assignment and verification status handling
+
+### Debugging Access Control Issues
+- **Middleware Logs**: Monitor middleware execution for role checking and redirection logic
+- **Authentication Callbacks**: Verify JWT and session callbacks are properly handling verification status
+- **Database Consistency**: Ensure user roles and verification statuses are consistent across database and session storage
+- **Route Configuration**: Verify middleware matchers align with actual route structure and access rules
 
 **Section sources**
-- [middleware.ts:40-47](file://src/middleware.ts#L40-L47)
-- [auth.ts:75-79](file://src/lib/auth.ts#L75-L79)
+- [middleware.ts:44-62](file://src/middleware.ts#L44-L62)
+- [auth.ts:95-112](file://src/lib/auth.ts#L95-L112)
 - [route.ts:20-89](file://src/app/api/auth/register/route.ts#L20-L89)
 
 ## Conclusion
-The unauthorized access handling and special pages functionality in RentalHub BOUESTI provides a robust, user-friendly system for protecting sensitive routes while offering clear recovery options. The middleware-based access control, combined with NextAuth session management and a dedicated unauthorized page, ensures that users receive appropriate feedback and guidance when encountering access-denied scenarios. The design balances security with usability, enabling seamless navigation back to public content and encouraging users to authenticate or adjust their actions as needed.
+The enhanced unauthorized access handling and special pages functionality in RentalHub BOUESTI provides a comprehensive, user-friendly system for managing complex role-based access control. The addition of pending approval workflows, three distinct role-specific dashboards, and sophisticated middleware protection creates a robust ecosystem where users receive appropriate guidance and access based on their verification status and role assignments.
+
+The system balances security with usability by providing clear communication about access limitations, intuitive recovery options, and role-appropriate user experiences. Users benefit from streamlined workflows that guide them through the approval process, while administrators gain powerful tools for managing platform access and content moderation.
+
+This enhanced architecture ensures that the platform can scale effectively while maintaining excellent user experience across all user types and access scenarios.

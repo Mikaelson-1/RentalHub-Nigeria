@@ -6,17 +6,26 @@
 - [src/app/api/auth/[...nextauth]/route.ts](file://src/app/api/auth/[...nextauth]/route.ts)
 - [src/middleware.ts](file://src/middleware.ts)
 - [prisma/schema.prisma](file://prisma/schema.prisma)
+- [src/types/index.ts](file://src/types/index.ts)
 - [src/app/api/properties/route.ts](file://src/app/api/properties/route.ts)
 - [src/app/api/properties/[id]/status/route.ts](file://src/app/api/properties/[id]/status/route.ts)
 - [src/app/api/bookings/route.ts](file://src/app/api/bookings/route.ts)
 - [src/app/api/locations/route.ts](file://src/app/api/locations/route.ts)
-- [src/app/login/page.tsx](file://src/app/login/page.tsx)
-- [src/app/register/page.tsx](file://src/app/register/page.tsx)
-- [src/app/unauthorized/page.tsx](file://src/app/unauthorized/page.tsx)
-- [src/types/index.ts](file://src/types/index.ts)
-- [src/lib/utils.ts](file://src/lib/utils.ts)
+- [src/app/(auth)/login/page.tsx](file://src/app/(auth)/login/page.tsx)
+- [src/app/(auth)/register/page.tsx](file://src/app/(auth)/register/page.tsx)
+- [src/app/(dashboards)/student/page.tsx](file://src/app/(dashboards)/student/page.tsx)
+- [src/app/(dashboards)/admin/page.tsx](file://src/app/(dashboards)/admin/page.tsx)
 - [src/lib/prisma.ts](file://src/lib/prisma.ts)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Updated authentication flow to use JWT strategy with role and verification status propagation
+- Enhanced middleware with comprehensive route protection logic for STUDENT, LANDLORD, and ADMIN roles
+- Implemented role-specific API endpoint permissions and business rule enforcement
+- Added comprehensive dashboard implementations for each role type
+- Updated database schema with proper enum definitions and default values
+- Enhanced frontend integration with role-aware navigation and conditional rendering
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -30,23 +39,20 @@
 9. [Conclusion](#conclusion)
 
 ## Introduction
-This document describes the Role-Based Access Control (RBAC) system in RentalHub-BOUESTI. It explains how three user roles (STUDENT, LANDLORD, ADMIN) are defined in the database, propagated via JWT tokens, and enforced in middleware and API routes. It also documents the verification status system (UNVERIFIED, VERIFIED, SUSPENDED) and its impact on access, along with practical examples of role-based conditional rendering, route protection logic, and permission-checking patterns. Finally, it covers the integration between authentication callbacks, session management, and authorization enforcement across the application.
+This document describes the Role-Based Access Control (RBAC) system in RentalHub-BOUESTI. The system implements a comprehensive three-tier role structure with STUDENT, LANDLORD, and ADMIN roles, each with distinct permissions and access levels. The RBAC system is built on JWT authentication with NextAuth.js, ensuring secure session management and role-based authorization across all application layers.
+
+The system defines roles in the database schema, propagates them through JWT tokens, and enforces access control in middleware and API routes. It includes a verification status system (UNVERIFIED, VERIFIED, SUSPENDED) that affects user access permissions. The implementation supports role-specific conditional rendering, route protection logic, and permission-checking patterns throughout the frontend and backend.
 
 ## Project Structure
-The RBAC implementation spans several layers:
-- Authentication configuration and session propagation via NextAuth.js
-- Edge middleware for route-level protection
-- API routes enforcing role-based permissions
-- Database schema defining roles and verification statuses
-- Frontend pages for login, registration, and unauthorized access
+The RBAC implementation spans multiple application layers with clear separation of concerns:
 
 ```mermaid
 graph TB
-subgraph "Authentication"
-NA["NextAuth Config<br/>src/lib/auth.ts"]
-NB["Auth API Route<br/>src/app/api/auth/[...nextauth]/route.ts"]
+subgraph "Authentication Layer"
+NA["NextAuth Configuration<br/>src/lib/auth.ts"]
+NB["Auth API Routes<br/>src/app/api/auth/[...nextauth]/route.ts"]
 end
-subgraph "Middleware"
+subgraph "Authorization Layer"
 MW["Edge Middleware<br/>src/middleware.ts"]
 end
 subgraph "API Layer"
@@ -55,13 +61,14 @@ PS["Property Status API<br/>src/app/api/properties/[id]/status/route.ts"]
 BK["Bookings API<br/>src/app/api/bookings/route.ts"]
 LC["Locations API<br/>src/app/api/locations/route.ts"]
 end
-subgraph "Database"
-SC["Schema (Enums, Models)<br/>prisma/schema.prisma"]
+subgraph "Database Layer"
+SC["Schema Definition<br/>prisma/schema.prisma"]
 end
-subgraph "Frontend"
-LG["Login Page<br/>src/app/login/page.tsx"]
-RG["Register Page<br/>src/app/register/page.tsx"]
-UA["Unauthorized Page<br/>src/app/unauthorized/page.tsx"]
+subgraph "Presentation Layer"
+ST["Student Dashboard<br/>src/app/(dashboards)/student/page.tsx"]
+AD["Admin Dashboard<br/>src/app/(dashboards)/admin/page.tsx"]
+LG["Login Page<br/>src/app/(auth)/login/page.tsx"]
+RG["Register Page<br/>src/app/(auth)/register/page.tsx"]
 end
 NA --> NB
 MW --> PR
@@ -73,209 +80,199 @@ PS --> SC
 BK --> SC
 LG --> NB
 RG --> NB
-UA --> MW
+ST --> PR
+ST --> BK
+AD --> PS
 ```
 
 **Diagram sources**
-- [src/lib/auth.ts:14-90](file://src/lib/auth.ts#L14-L90)
-- [src/app/api/auth/[...nextauth]/route.ts:1-7](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
-- [src/middleware.ts:11-38](file://src/middleware.ts#L11-L38)
-- [src/app/api/properties/route.ts:68-78](file://src/app/api/properties/route.ts#L68-L78)
-- [src/app/api/properties/[id]/status/route.ts:25-27](file://src/app/api/properties/[id]/status/route.ts#L25-L27)
-- [src/app/api/bookings/route.ts:55-57](file://src/app/api/bookings/route.ts#L55-L57)
-- [prisma/schema.prisma:17-27](file://prisma/schema.prisma#L17-L27)
-- [src/app/login/page.tsx:51](file://src/app/login/page.tsx#L51)
-- [src/app/register/page.tsx:50](file://src/app/register/page.tsx#L50)
-- [src/app/unauthorized/page.tsx:1-35](file://src/app/unauthorized/page.tsx#L1-L35)
+- [src/lib/auth.ts:36-118](file://src/lib/auth.ts#L36-L118)
+- [src/middleware.ts:5-75](file://src/middleware.ts#L5-L75)
+- [prisma/schema.prisma:17-62](file://prisma/schema.prisma#L17-L62)
+- [src/app/(dashboards)/student/page.tsx:43-302](file://src/app/(dashboards)/student/page.tsx#L43-L302)
+- [src/app/(dashboards)/admin/page.tsx:50-246](file://src/app/(dashboards)/admin/page.tsx#L50-L246)
 
 **Section sources**
-- [src/lib/auth.ts:14-90](file://src/lib/auth.ts#L14-L90)
-- [src/middleware.ts:11-38](file://src/middleware.ts#L11-L38)
-- [prisma/schema.prisma:17-27](file://prisma/schema.prisma#L17-L27)
+- [src/lib/auth.ts:36-118](file://src/lib/auth.ts#L36-L118)
+- [src/middleware.ts:5-75](file://src/middleware.ts#L5-L75)
+- [prisma/schema.prisma:17-62](file://prisma/schema.prisma#L17-L62)
 
 ## Core Components
-- Roles and verification status are defined as enums in the Prisma schema and persisted in the User model.
-- NextAuth.js handles authentication, stores role and verification status in the JWT token, and exposes them in the session.
-- Edge middleware enforces route-level access based on the token’s role.
-- API routes enforce role-based permissions and additional business rules (e.g., property status, booking availability).
-- Frontend pages integrate with the auth flow and present an unauthorized page when access is denied.
 
-Key implementation references:
-- Role and verification status enums: [prisma/schema.prisma:17-27](file://prisma/schema.prisma#L17-L27)
-- JWT/session propagation: [src/lib/auth.ts:55-72](file://src/lib/auth.ts#L55-L72)
-- Middleware route guards: [src/middleware.ts:16-29](file://src/middleware.ts#L16-L29)
-- API route permissions:
-  - Properties creation: [src/app/api/properties/route.ts:76-78](file://src/app/api/properties/route.ts#L76-L78)
-  - Property status updates: [src/app/api/properties/[id]/status/route.ts:25-27](file://src/app/api/properties/[id]/status/route.ts#L25-L27)
-  - Bookings creation: [src/app/api/bookings/route.ts:55-57](file://src/app/api/bookings/route.ts#L55-L57)
+### Role Definitions and Database Schema
+The RBAC system defines three core roles with specific permissions and database persistence:
+
+- **STUDENT**: Primary users who can browse properties, create bookings, and manage their booking requests
+- **LANDLORD**: Property owners who can list properties, view their property analytics, and manage bookings for their listings
+- **ADMIN**: System administrators with full platform management capabilities including property approval, user management, and system oversight
+
+Roles are defined as enums in the Prisma schema with default values and proper indexing for optimal performance.
 
 **Section sources**
-- [prisma/schema.prisma:17-27](file://prisma/schema.prisma#L17-L27)
-- [src/lib/auth.ts:55-72](file://src/lib/auth.ts#L55-L72)
-- [src/middleware.ts:16-29](file://src/middleware.ts#L16-L29)
-- [src/app/api/properties/route.ts:76-78](file://src/app/api/properties/route.ts#L76-L78)
-- [src/app/api/properties/[id]/status/route.ts:25-27](file://src/app/api/properties/[id]/status/route.ts#L25-L27)
-- [src/app/api/bookings/route.ts:55-57](file://src/app/api/bookings/route.ts#L55-L57)
+- [prisma/schema.prisma:17-21](file://prisma/schema.prisma#L17-L21)
+- [prisma/schema.prisma:44-61](file://prisma/schema.prisma#L44-L61)
+
+### Authentication and Session Management
+NextAuth.js handles credential-based authentication with comprehensive role propagation:
+
+- JWT strategy with 30-day expiration for secure session management
+- Automatic role and verification status inclusion in JWT tokens
+- Type-safe session augmentation for compile-time role checking
+- Credential validation with bcrypt password comparison
+- Verification status enforcement preventing access for suspended accounts
+
+**Section sources**
+- [src/lib/auth.ts:36-118](file://src/lib/auth.ts#L36-L118)
+- [src/app/api/auth/[...nextauth]/route.ts:1-7](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
+
+### Middleware Route Protection
+Edge middleware enforces comprehensive route-level access control:
+
+- Protected route prefixes for each role type (/student, /landlord, /admin)
+- Token-based authentication verification
+- Role-specific access validation with intelligent redirect logic
+- Matcher configuration targeting only authenticated routes
+- Graceful handling of unauthorized access attempts
+
+**Section sources**
+- [src/middleware.ts:5-75](file://src/middleware.ts#L5-L75)
+
+### API-Level Permissions and Business Rules
+Each API endpoint implements role-specific authorization with business logic enforcement:
+
+- Properties API: Landlord/Admin-only property creation with validation
+- Property status API: Admin-only approval/rejection with mandatory rejection reasons
+- Bookings API: Student-only booking creation with property availability checks
+- Comprehensive error handling with appropriate HTTP status codes
+
+**Section sources**
+- [src/app/api/properties/route.ts:97-161](file://src/app/api/properties/route.ts#L97-L161)
+- [src/app/api/properties/[id]/status/route.ts:17-68](file://src/app/api/properties/[id]/status/route.ts#L17-L68)
+- [src/app/api/bookings/route.ts:47-181](file://src/app/api/bookings/route.ts#L47-L181)
 
 ## Architecture Overview
-The RBAC pipeline integrates authentication, session propagation, middleware enforcement, and API-level checks.
+The RBAC system follows a layered architecture ensuring security at every level:
 
 ```mermaid
 sequenceDiagram
 participant Browser as "Browser"
-participant NextAuth as "NextAuth API<br/>/api/auth/[...nextauth]"
-participant AuthCfg as "Auth Config<br/>src/lib/auth.ts"
-participant MW as "Edge Middleware<br/>src/middleware.ts"
-participant API as "API Route"
-participant DB as "Database<br/>prisma/schema.prisma"
+participant NextAuth as "NextAuth Service"
+participant AuthCfg as "Auth Configuration"
+participant MW as "Edge Middleware"
+participant API as "API Endpoint"
+participant DB as "Database"
 Browser->>NextAuth : "POST credentials"
 NextAuth->>AuthCfg : "authorize(credentials)"
-AuthCfg->>DB : "findUnique(User)"
-DB-->>AuthCfg : "User record"
-AuthCfg->>AuthCfg : "verify password and status"
-AuthCfg-->>NextAuth : "User payload (id, role, verificationStatus)"
-NextAuth-->>Browser : "JWT token + session"
-Browser->>MW : "Navigate to protected route"
-MW->>MW : "Check token.role vs route pattern"
-MW-->>Browser : "Allow or redirect to /unauthorized"
-Browser->>API : "Call API endpoint"
-API->>API : "getServerSession()"
-API->>API : "Check session.user.role"
-API->>DB : "Read/write with role-based filters"
-DB-->>API : "Data"
-API-->>Browser : "Response"
+AuthCfg->>DB : "Find user by email"
+DB-->>AuthCfg : "User record with role"
+AuthCfg->>AuthCfg : "Verify password and status"
+AuthCfg-->>NextAuth : "User payload with role"
+NextAuth-->>Browser : "JWT token with role claims"
+Browser->>MW : "Navigate to /student/dashboard"
+MW->>MW : "Extract token and verify role"
+MW-->>Browser : "Allow access to student routes"
+Browser->>API : "POST /api/properties"
+API->>API : "getServerSession() with role validation"
+API->>DB : "Create property with role-based constraints"
+DB-->>API : "Created property record"
+API-->>Browser : "201 Created with property data"
 ```
 
 **Diagram sources**
-- [src/app/api/auth/[...nextauth]/route.ts:1-7](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
-- [src/lib/auth.ts:22-51](file://src/lib/auth.ts#L22-L51)
-- [src/middleware.ts:11-38](file://src/middleware.ts#L11-L38)
-- [src/app/api/properties/route.ts:68-78](file://src/app/api/properties/route.ts#L68-L78)
-- [prisma/schema.prisma:44-61](file://prisma/schema.prisma#L44-L61)
+- [src/lib/auth.ts:53-92](file://src/lib/auth.ts#L53-L92)
+- [src/middleware.ts:15-66](file://src/middleware.ts#L15-L66)
+- [src/app/api/properties/route.ts:97-161](file://src/app/api/properties/route.ts#L97-L161)
 
 ## Detailed Component Analysis
 
-### Authentication and Session Propagation
-- The authentication provider validates credentials, checks verification status, and attaches role and verification status to the JWT token and session.
-- The session strategy uses JWT with a max age and update age for refresh behavior.
-- The module augments NextAuth types to include role and verification status for type safety.
+### Authentication Flow and Role Propagation
+The authentication system implements a secure credential validation process with comprehensive role assignment:
 
-Key references:
-- Authorization callback and JWT/session callbacks: [src/lib/auth.ts:22-72](file://src/lib/auth.ts#L22-L72)
-- Session strategy and secret: [src/lib/auth.ts:81-89](file://src/lib/auth.ts#L81-L89)
-- Type augmentation for User, Session, and JWT: [src/lib/auth.ts:93-116](file://src/lib/auth.ts#L93-L116)
-
-```mermaid
-flowchart TD
-Start(["Authorize(credentials)"]) --> CheckCreds["Check email/password present"]
-CheckCreds --> LoadUser["Load user by email"]
-LoadUser --> Found{"User found?"}
-Found --> |No| ErrUser["Throw 'No account found'"]
-Found --> |Yes| VerifyPwd["Compare hashed password"]
-VerifyPwd --> PwdOK{"Password valid?"}
-PwdOK --> |No| ErrPwd["Throw 'Incorrect password'"]
-PwdOK --> |Yes| CheckStatus["Check verificationStatus"]
-CheckStatus --> IsSuspended{"Is SUSPENDED?"}
-IsSuspended --> |Yes| ErrSuspended["Throw 'Account suspended'"]
-IsSuspended --> |No| AttachClaims["Attach id, role, verificationStatus to token/session"]
-AttachClaims --> Done(["Return user"])
-```
-
-**Diagram sources**
-- [src/lib/auth.ts:22-51](file://src/lib/auth.ts#L22-L51)
-
-**Section sources**
-- [src/lib/auth.ts:22-72](file://src/lib/auth.ts#L22-L72)
-- [src/lib/auth.ts:81-89](file://src/lib/auth.ts#L81-L89)
-- [src/lib/auth.ts:93-116](file://src/lib/auth.ts#L93-L116)
-
-### Middleware Route Protection
-- The middleware enforces role-based access for:
-  - Admin-only routes under /admin
-  - Landlord-only routes under /dashboard/landlord
-  - Student-only routes under /dashboard/student
-- It redirects unqualified users to the unauthorized page.
-- It also matches additional protected endpoints such as property creation and bookings.
-
-Key references:
-- Route guards and redirection: [src/middleware.ts:16-29](file://src/middleware.ts#L16-L29)
-- Matcher configuration: [src/middleware.ts:40-47](file://src/middleware.ts#L40-L47)
+1. **Credential Validation**: Email and password presence verification
+2. **User Lookup**: Database query by email with proper error handling
+3. **Password Verification**: Bcrypt comparison for security
+4. **Status Check**: Verification status validation preventing suspended access
+5. **Token Generation**: Role and verification status inclusion in JWT claims
+6. **Session Creation**: Type-safe session with role information
 
 ```mermaid
 flowchart TD
-Enter(["Incoming Request"]) --> Extract["Extract token and pathname"]
-Extract --> AdminCheck{"Path starts with /admin?"}
-AdminCheck --> |Yes| RoleAdmin{"token.role === ADMIN?"}
-RoleAdmin --> |No| Deny["Redirect to /unauthorized"]
-RoleAdmin --> |Yes| Next1["Continue"]
-AdminCheck --> |No| LandlordCheck{"Path starts with /dashboard/landlord?"}
-LandlordCheck --> |Yes| RoleLL{"token.role in {LANDLORD, ADMIN}?"}
-RoleLL --> |No| Deny
-RoleLL --> |Yes| Next2["Continue"]
-LandlordCheck --> |No| StudentCheck{"Path starts with /dashboard/student?"}
-StudentCheck --> |Yes| RoleStu{"token.role === STUDENT?"}
-RoleStu --> |No| Deny
-RoleStu --> |Yes| Next3["Continue"]
-StudentCheck --> |No| Continue["Continue"]
+Start(["User Authentication Request"]) --> ValidateCreds["Validate email and password"]
+ValidateCreds --> UserLookup["Query database for user"]
+UserLookup --> UserFound{"User exists?"}
+UserFound --> |No| InvalidCreds["Return invalid credentials"]
+UserFound --> |Yes| VerifyPassword["Compare hashed password"]
+VerifyPassword --> PassValid{"Password valid?"}
+PassValid --> |No| InvalidPass["Return invalid password"]
+PassValid --> |Yes| CheckStatus["Check verification status"]
+CheckStatus --> Suspended{"Status = SUSPENDED?"}
+Suspended --> |Yes| AccountSuspended["Return suspended account error"]
+Suspended --> |No| CreateToken["Create JWT with role claims"]
+CreateToken --> Success["Return authenticated user"]
 ```
 
 **Diagram sources**
-- [src/middleware.ts:16-29](file://src/middleware.ts#L16-L29)
+- [src/lib/auth.ts:53-92](file://src/lib/auth.ts#L53-L92)
 
 **Section sources**
-- [src/middleware.ts:16-29](file://src/middleware.ts#L16-L29)
-- [src/middleware.ts:40-47](file://src/middleware.ts#L40-L47)
+- [src/lib/auth.ts:53-92](file://src/lib/auth.ts#L53-L92)
+- [src/lib/auth.ts:95-111](file://src/lib/auth.ts#L95-L111)
 
-### API-Level Permissions and Business Rules
-- Properties API:
-  - Creation requires an authenticated session and either LANDLORD or ADMIN role.
-  - Validation ensures required fields and location existence.
-- Property status API:
-  - Only ADMIN can update status to APPROVED, REJECTED, or PENDING.
-- Bookings API:
-  - Only STUDENT can create bookings.
-  - Property must be APPROVED and no active duplicate booking exists.
-- Locations API:
-  - Public listing of locations for selection in forms.
+### Middleware Authorization Logic
+The edge middleware implements sophisticated route protection with intelligent role validation:
 
-Key references:
-- Properties creation guard: [src/app/api/properties/route.ts:76-78](file://src/app/api/properties/route.ts#L76-L78)
-- Property status guard: [src/app/api/properties/[id]/status/route.ts:25-27](file://src/app/api/properties/[id]/status/route.ts#L25-L27)
-- Bookings creation guard: [src/app/api/bookings/route.ts:55-57](file://src/app/api/bookings/route.ts#L55-L57)
-- Locations public access: [src/app/api/locations/route.ts:11-28](file://src/app/api/locations/route.ts#L11-L28)
+- **Route Matching**: Pattern-based route detection for protected paths
+- **Token Extraction**: Secure JWT extraction using NextAuth JWT utilities
+- **Role Validation**: Direct role comparison against configured access rules
+- **Intelligent Redirection**: Context-aware redirects based on user's actual role
+- **Fallback Handling**: Graceful fallback to login for unknown roles
 
 ```mermaid
-sequenceDiagram
-participant Client as "Client"
-participant API as "API Route"
-participant Session as "getServerSession()"
-participant DB as "Prisma"
-Client->>API : "POST /api/properties"
-API->>Session : "getServerSession()"
-Session-->>API : "Session with user.role"
-API->>API : "Check role === LANDLORD or ADMIN"
-API->>DB : "Validate location and create property"
-DB-->>API : "Created property"
-API-->>Client : "201 Created"
+flowchart TD
+Request(["Incoming Request"]) --> CheckProtected["Check if route is protected"]
+CheckProtected --> |No| Allow["Allow access"]
+CheckProtected --> |Yes| ExtractToken["Extract JWT token"]
+ExtractToken --> HasToken{"Token exists?"}
+HasToken --> |No| RedirectLogin["Redirect to login with callbackUrl"]
+HasToken --> |Yes| GetRole["Extract user role from token"]
+GetRole --> CheckRoute["Check route-role compatibility"]
+CheckRoute --> Allowed{"Allowed for role?"}
+Allowed --> |Yes| Allow
+Allowed --> |No| RedirectRole["Redirect to user's dashboard"]
 ```
 
 **Diagram sources**
-- [src/app/api/properties/route.ts:68-118](file://src/app/api/properties/route.ts#L68-L118)
+- [src/middleware.ts:15-66](file://src/middleware.ts#L15-L66)
 
 **Section sources**
-- [src/app/api/properties/route.ts:68-118](file://src/app/api/properties/route.ts#L68-L118)
-- [src/app/api/properties/[id]/status/route.ts:17-51](file://src/app/api/properties/[id]/status/route.ts#L17-L51)
-- [src/app/api/bookings/route.ts:47-108](file://src/app/api/bookings/route.ts#L47-L108)
-- [src/app/api/locations/route.ts:11-28](file://src/app/api/locations/route.ts#L11-L28)
+- [src/middleware.ts:15-66](file://src/middleware.ts#L15-L66)
+- [src/middleware.ts:68-75](file://src/middleware.ts#L68-L75)
 
-### Database Model and Enums
-- The User model includes role and verificationStatus fields with defaults.
-- Enums define the set of valid roles and verification states.
-- Indexes exist on email and role for efficient lookups.
+### Role-Specific API Endpoint Implementation
+Each API endpoint implements comprehensive role-based authorization with business logic enforcement:
 
-Key references:
-- User model and defaults: [prisma/schema.prisma:44-61](file://prisma/schema.prisma#L44-L61)
-- Role and verification status enums: [prisma/schema.prisma:17-27](file://prisma/schema.prisma#L17-L27)
+#### Properties API
+- **Creation Endpoint**: Landlord/Admin-only with comprehensive validation
+- **Listing Endpoint**: Role-aware filtering with different visibility rules
+- **Search Functionality**: Advanced filtering with role-based access controls
+
+#### Property Status API
+- **Approval/Rejection**: Admin-only operations with mandatory rejection reasons
+- **Review Tracking**: Complete audit trail with reviewer identification
+- **Status Validation**: Strict status value validation
+
+#### Bookings API
+- **Student Booking**: Exclusive student functionality with property availability checks
+- **Landlord Management**: Property owner booking management capabilities
+- **Admin Oversight**: Comprehensive booking monitoring for administrative purposes
+
+**Section sources**
+- [src/app/api/properties/route.ts:97-161](file://src/app/api/properties/route.ts#L97-L161)
+- [src/app/api/properties/[id]/status/route.ts:17-68](file://src/app/api/properties/[id]/status/route.ts#L17-L68)
+- [src/app/api/bookings/route.ts:47-181](file://src/app/api/bookings/route.ts#L47-L181)
+
+### Database Schema and Data Model
+The database schema defines comprehensive role and status management:
 
 ```mermaid
 erDiagram
@@ -284,8 +281,8 @@ string id PK
 string name
 string email UK
 string password
-enum role
-enum verificationStatus
+enum role DEFAULT STUDENT
+enum verificationStatus DEFAULT UNVERIFIED
 datetime createdAt
 datetime updatedAt
 }
@@ -293,127 +290,134 @@ PROPERTY {
 string id PK
 string title
 decimal price
-enum status
+enum status DEFAULT PENDING
 string landlordId FK
 string locationId FK
 }
 BOOKING {
 string id PK
-enum status
+enum status DEFAULT PENDING
 string studentId FK
 string propertyId FK
 }
-USER ||--o{ PROPERTY : "landlord"
-USER ||--o{ BOOKING : "student"
-PROPERTY ||--o{ BOOKING : "property"
+USER ||--o{ PROPERTY : "owns"
+USER ||--o{ BOOKING : "creates"
+PROPERTY ||--o{ BOOKING : "contains"
 ```
 
 **Diagram sources**
 - [prisma/schema.prisma:44-61](file://prisma/schema.prisma#L44-L61)
-- [prisma/schema.prisma:80-108](file://prisma/schema.prisma#L80-L108)
-- [prisma/schema.prisma:111-129](file://prisma/schema.prisma#L111-L129)
+- [prisma/schema.prisma:81-114](file://prisma/schema.prisma#L81-L114)
+- [prisma/schema.prisma:117-135](file://prisma/schema.prisma#L117-L135)
 
 **Section sources**
-- [prisma/schema.prisma:44-61](file://prisma/schema.prisma#L44-L61)
-- [prisma/schema.prisma:17-27](file://prisma/schema.prisma#L17-L27)
+- [prisma/schema.prisma:17-62](file://prisma/schema.prisma#L17-L62)
+- [prisma/schema.prisma:44-135](file://prisma/schema.prisma#L44-L135)
 
-### Frontend Integration and Unauthorized Handling
-- Login and registration pages submit to NextAuth endpoints and render role options during registration.
-- The unauthorized page is shown when middleware denies access.
+### Frontend Integration and Role-Aware Navigation
+The frontend implements comprehensive role-aware navigation and conditional rendering:
 
-Key references:
-- Login form target: [src/app/login/page.tsx:51](file://src/app/login/page.tsx#L51)
-- Registration role selector: [src/app/register/page.tsx:54-75](file://src/app/register/page.tsx#L54-L75)
-- Unauthorized page: [src/app/unauthorized/page.tsx:1-35](file://src/app/unauthorized/page.tsx#L1-L35)
+#### Student Dashboard
+- Property browsing with availability indicators
+- Booking management with real-time status updates
+- Responsive design with role-appropriate UI elements
+- Integration with API endpoints for seamless functionality
+
+#### Admin Dashboard
+- Property approval workflows
+- Platform analytics and reporting
+- User management capabilities
+- Comprehensive administrative tools
+
+#### Authentication Pages
+- Role selection during login process
+- Dynamic routing based on actual user roles
+- Error handling for role mismatches
+- Seamless navigation after authentication
 
 **Section sources**
-- [src/app/login/page.tsx:51](file://src/app/login/page.tsx#L51)
-- [src/app/register/page.tsx:54-75](file://src/app/register/page.tsx#L54-L75)
-- [src/app/unauthorized/page.tsx:1-35](file://src/app/unauthorized/page.tsx#L1-L35)
+- [src/app/(dashboards)/student/page.tsx:43-302](file://src/app/(dashboards)/student/page.tsx#L43-L302)
+- [src/app/(dashboards)/admin/page.tsx:50-246](file://src/app/(dashboards)/admin/page.tsx#L50-L246)
+- [src/app/(auth)/login/page.tsx:8-205](file://src/app/(auth)/login/page.tsx#L8-L205)
 
 ## Dependency Analysis
-- Authentication depends on Prisma for user lookup and bcrypt for password comparison.
-- Middleware depends on NextAuth token presence and role.
-- API routes depend on getServerSession() and Prisma for data access.
-- Frontend pages depend on NextAuth endpoints and rely on middleware for protection.
+The RBAC system maintains clear dependency relationships across all layers:
 
 ```mermaid
 graph LR
-Auth["src/lib/auth.ts"] --> Prisma["prisma/schema.prisma"]
-Auth --> NextAuthAPI["src/app/api/auth/[...nextauth]/route.ts"]
-MW["src/middleware.ts"] --> NextAuthAPI
-PropsAPI["src/app/api/properties/route.ts"] --> Prisma
-StatusAPI["src/app/api/properties/[id]/status/route.ts"] --> Prisma
-BookAPI["src/app/api/bookings/route.ts"] --> Prisma
-Login["src/app/login/page.tsx"] --> NextAuthAPI
-Register["src/app/register/page.tsx"] --> NextAuthAPI
-Unauthorized["src/app/unauthorized/page.tsx"] --> MW
+Auth["Authentication (src/lib/auth.ts)"] --> Prisma["Database Schema (prisma/schema.prisma)"]
+Auth --> NextAuthAPI["Auth API (/api/auth)"]
+MW["Middleware (src/middleware.ts)"] --> NextAuthAPI
+PropsAPI["Properties API (src/app/api/properties)"] --> Prisma
+StatusAPI["Status API (src/app/api/properties/[id]/status)"] --> Prisma
+BookAPI["Bookings API (src/app/api/bookings)"] --> Prisma
+Login["Login Page (src/app/(auth)/login)"] --> NextAuthAPI
+Register["Register Page (src/app/(auth)/register)"] --> NextAuthAPI
+StudentDash["Student Dashboard (src/app/(dashboards)/student)"] --> PropsAPI
+StudentDash --> BookAPI
+AdminDash["Admin Dashboard (src/app/(dashboards)/admin)"] --> StatusAPI
 ```
 
 **Diagram sources**
-- [src/lib/auth.ts:10-11](file://src/lib/auth.ts#L10-L11)
-- [src/app/api/auth/[...nextauth]/route.ts:1-7](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
-- [src/middleware.ts:11-38](file://src/middleware.ts#L11-L38)
-- [src/app/api/properties/route.ts:68-118](file://src/app/api/properties/route.ts#L68-L118)
-- [src/app/api/properties/[id]/status/route.ts:17-51](file://src/app/api/properties/[id]/status/route.ts#L17-L51)
-- [src/app/api/bookings/route.ts:47-108](file://src/app/api/bookings/route.ts#L47-L108)
-- [src/app/login/page.tsx:51](file://src/app/login/page.tsx#L51)
-- [src/app/register/page.tsx:50](file://src/app/register/page.tsx#L50)
-- [src/app/unauthorized/page.tsx:1-35](file://src/app/unauthorized/page.tsx#L1-L35)
+- [src/lib/auth.ts:1-119](file://src/lib/auth.ts#L1-L119)
+- [src/middleware.ts:1-76](file://src/middleware.ts#L1-L76)
+- [prisma/schema.prisma:1-136](file://prisma/schema.prisma#L1-L136)
 
 **Section sources**
-- [src/lib/auth.ts:10-11](file://src/lib/auth.ts#L10-L11)
-- [src/app/api/auth/[...nextauth]/route.ts:1-7](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
-- [src/middleware.ts:11-38](file://src/middleware.ts#L11-L38)
-- [src/app/api/properties/route.ts:68-118](file://src/app/api/properties/route.ts#L68-L118)
-- [src/app/api/properties/[id]/status/route.ts:17-51](file://src/app/api/properties/[id]/status/route.ts#L17-L51)
-- [src/app/api/bookings/route.ts:47-108](file://src/app/api/bookings/route.ts#L47-L108)
-- [src/app/login/page.tsx:51](file://src/app/login/page.tsx#L51)
-- [src/app/register/page.tsx:50](file://src/app/register/page.tsx#L50)
-- [src/app/unauthorized/page.tsx:1-35](file://src/app/unauthorized/page.tsx#L1-L35)
+- [src/lib/auth.ts:1-119](file://src/lib/auth.ts#L1-L119)
+- [src/middleware.ts:1-76](file://src/middleware.ts#L1-L76)
+- [prisma/schema.prisma:1-136](file://prisma/schema.prisma#L1-L136)
 
 ## Performance Considerations
-- JWT strategy avoids frequent database reads for session validation; however, sensitive checks still require server-side session retrieval and database queries.
-- Middleware matcher targets only authenticated routes to minimize overhead.
-- API routes use targeted Prisma queries with appropriate includes and filters to reduce payload sizes.
+The RBAC system implements several performance optimization strategies:
 
-[No sources needed since this section provides general guidance]
+- **JWT Strategy**: Eliminates frequent database reads for session validation
+- **Edge Middleware**: Lightweight role checks using token parsing
+- **Selective Matching**: Middleware targets only protected routes to minimize overhead
+- **Database Indexing**: Strategic indexes on email, role, and status fields
+- **Efficient Queries**: Optimized Prisma queries with selective field loading
+- **Caching Strategy**: No-store directives for fresh data in dashboards
 
 ## Troubleshooting Guide
-Common issues and resolutions:
-- Authentication fails due to missing or invalid credentials:
-  - Ensure email and password are provided and correct.
-  - Verify the user exists and the password hash matches.
-  - Check that verification status is not SUSPENDED.
-  - References: [src/lib/auth.ts:22-51](file://src/lib/auth.ts#L22-L51)
-- Access denied errors:
-  - Middleware redirects unqualified users to the unauthorized page.
-  - Confirm the route belongs to the expected role pattern.
-  - References: [src/middleware.ts:16-29](file://src/middleware.ts#L16-L29), [src/app/unauthorized/page.tsx:1-35](file://src/app/unauthorized/page.tsx#L1-L35)
-- API permission errors:
-  - Properties creation requires LANDLORD or ADMIN role.
-  - Property status updates require ADMIN role.
-  - Bookings require STUDENT role and approved property.
-  - References: [src/app/api/properties/route.ts:76-78](file://src/app/api/properties/route.ts#L76-L78), [src/app/api/properties/[id]/status/route.ts:25-27](file://src/app/api/properties/[id]/status/route.ts#L25-L27), [src/app/api/bookings/route.ts:55-57](file://src/app/api/bookings/route.ts#L55-L57)
-- Session type mismatches:
-  - Ensure module augmentation is applied for User, Session, and JWT types.
-  - References: [src/lib/auth.ts:93-116](file://src/lib/auth.ts#L93-L116)
+
+### Common Authentication Issues
+- **Invalid Credentials**: Ensure email and password are provided and correct
+- **Account Suspended**: Verify user verification status is not SUSPENDED
+- **Role Mismatch**: Login page validates selected role against actual user role
+- **Token Expiration**: JWT tokens expire after 30 days, requiring re-authentication
+
+### Middleware Access Problems
+- **Route Not Found**: Verify route follows the pattern /{role}/{path}
+- **Permission Denied**: Check user role matches the required access level
+- **Redirect Loops**: Ensure proper role assignment in user records
+- **Matcher Issues**: Verify middleware matcher configuration includes all protected routes
+
+### API Permission Errors
+- **Properties Creation**: Only LANDLORD or ADMIN can create properties
+- **Status Updates**: Only ADMIN can approve/reject properties
+- **Booking Creation**: Only STUDENT can create bookings
+- **Business Rule Violations**: Check property status and availability constraints
+
+### Frontend Navigation Issues
+- **Dashboard Access**: Students redirected to /student, landlords to /landlord, admins to /admin
+- **Conditional Rendering**: Role-aware UI elements based on session data
+- **Form Validation**: Proper role-based form field visibility and validation
 
 **Section sources**
-- [src/lib/auth.ts:22-51](file://src/lib/auth.ts#L22-L51)
-- [src/middleware.ts:16-29](file://src/middleware.ts#L16-L29)
-- [src/app/unauthorized/page.tsx:1-35](file://src/app/unauthorized/page.tsx#L1-L35)
-- [src/app/api/properties/route.ts:76-78](file://src/app/api/properties/route.ts#L76-L78)
-- [src/app/api/properties/[id]/status/route.ts:25-27](file://src/app/api/properties/[id]/status/route.ts#L25-L27)
+- [src/lib/auth.ts:53-92](file://src/lib/auth.ts#L53-L92)
+- [src/middleware.ts:15-66](file://src/middleware.ts#L15-L66)
+- [src/app/api/properties/route.ts:105-107](file://src/app/api/properties/route.ts#L105-L107)
+- [src/app/api/properties/[id]/status/route.ts:26-28](file://src/app/api/properties/[id]/status/route.ts#L26-L28)
 - [src/app/api/bookings/route.ts:55-57](file://src/app/api/bookings/route.ts#L55-L57)
-- [src/lib/auth.ts:93-116](file://src/lib/auth.ts#L93-L116)
 
 ## Conclusion
-RentalHub-BOUESTI implements a robust RBAC system centered on:
-- Role and verification status defined in the Prisma schema
-- JWT propagation of role and verification status via NextAuth
-- Edge middleware enforcing route-level access
-- API routes applying role-based permissions and business rules
-- Frontend pages integrating with the auth flow and unauthorized handling
+RentalHub-BOUESTI implements a robust, comprehensive Role-Based Access Control system that provides:
 
-This layered approach ensures secure, predictable access control across the application.
+- **Secure Authentication**: JWT-based authentication with role and verification status propagation
+- **Comprehensive Authorization**: Three-tier role structure with specific permissions for STUDENT, LANDLORD, and ADMIN
+- **Layered Security**: Multi-layered protection from authentication through API endpoints
+- **Role-Aware Frontend**: Intelligent navigation and conditional rendering based on user roles
+- **Business Logic Integration**: Role-specific business rules embedded in API endpoints
+- **Database Integrity**: Proper schema design with role and status enumerations
+
+The system ensures secure, predictable access control across all application layers while maintaining excellent user experience through role-appropriate interfaces and seamless navigation patterns.

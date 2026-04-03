@@ -16,7 +16,28 @@
 - [utils.ts](file://src/lib/utils.ts)
 - [tailwind.config.ts](file://tailwind.config.ts)
 - [package.json](file://package.json)
+- [PropertyCard.tsx](file://src/components/PropertyCard.tsx)
+- [DashboardNavbar.tsx](file://src/components/DashboardNavbar.tsx)
+- [PublicNavbar.tsx](file://src/components/PublicNavbar.tsx)
+- [Navbar.tsx](file://src/components/Navbar.tsx)
+- [Footer.tsx](file://src/components/Footer.tsx)
+- [Providers.tsx](file://src/components/Providers.tsx)
+- [layout.tsx](file://src/app/(public)/layout.tsx)
+- [layout.tsx](file://src/app/(dashboards)/layout.tsx)
+- [page.tsx](file://src/app/(public)/page.tsx)
+- [page.tsx](file://src/app/(public)/properties/page.tsx)
+- [page.tsx](file://src/app/(public)/properties/[id]/page.tsx)
+- [page.tsx](file://src/app/(dashboards)/landlord/page.tsx)
+- [page.tsx](file://src/app/(dashboards)/student/page.tsx)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Added comprehensive component library documentation including PropertyCard, DashboardNavbar, PublicNavbar, and form components
+- Updated core components section to include new reusable components
+- Enhanced component composition patterns with new navbar and card components
+- Added detailed analysis of dashboard and public navigation patterns
+- Updated architecture overview to reflect new component-based structure
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -24,17 +45,18 @@
 3. [Core Components](#core-components)
 4. [Architecture Overview](#architecture-overview)
 5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
-10. [Appendices](#appendices)
+6. [Component Library](#component-library)
+7. [Dependency Analysis](#dependency-analysis)
+8. [Performance Considerations](#performance-considerations)
+9. [Troubleshooting Guide](#troubleshooting-guide)
+10. [Conclusion](#conclusion)
+11. [Appendices](#appendices)
 
 ## Introduction
-This document describes the RentalHub-BOUESTI frontend components and user interface. It covers the application layout, home page, property browsing interface, registration and login forms, and unauthorized access handling. It explains the Tailwind CSS styling approach, responsive design, component composition patterns, form validation and error handling, user feedback mechanisms, accessibility considerations, component hierarchy, state management patterns, and integration with backend APIs. It also addresses mobile responsiveness and cross-browser compatibility.
+This document describes the RentalHub-BOUESTI frontend components and user interface. It covers the application layout, home page, property browsing interface, registration and login forms, unauthorized access handling, and a comprehensive component library including PropertyCard, DashboardNavbar, PublicNavbar, and form components. It explains the Tailwind CSS styling approach, responsive design, component composition patterns, form validation and error handling, user feedback mechanisms, accessibility considerations, component hierarchy, state management patterns, and integration with backend APIs. It also addresses mobile responsiveness and cross-browser compatibility.
 
 ## Project Structure
-The frontend is built with Next.js App Router. Pages are organized under src/app with dedicated routes for the home page, login, registration, and unauthorized access. Global styles and Tailwind configuration define the design system. Authentication is handled via NextAuth.js with a credentials provider and protected routes via middleware. API routes under src/app/api implement backend integration for authentication, property listings, and related operations.
+The frontend is built with Next.js App Router. Pages are organized under src/app with dedicated routes for the home page, login, registration, and unauthorized access. Global styles and Tailwind configuration define the design system. Authentication is handled via NextAuth.js with a credentials provider and protected routes via middleware. API routes under src/app/api implement backend integration for authentication, property listings, and related operations. A comprehensive component library provides reusable UI elements across different application contexts.
 
 ```mermaid
 graph TB
@@ -44,6 +66,16 @@ H["page.tsx (Home)"]
 LG["login/page.tsx"]
 RG["register/page.tsx"]
 UA["unauthorized/page.tsx"]
+PL["public layout.tsx"]
+DL["dashboard layout.tsx"]
+end
+subgraph "Component Library"
+PC["PropertyCard.tsx"]
+DN["DashboardNavbar.tsx"]
+PN["PublicNavbar.tsx"]
+NB["Navbar.tsx"]
+FT["Footer.tsx"]
+PV["Providers.tsx"]
 end
 subgraph "Lib"
 AU["lib/auth.ts"]
@@ -61,13 +93,18 @@ subgraph "Styling"
 GC["app/globals.css"]
 TW["tailwind.config.ts"]
 end
-L --> H
-L --> LG
-L --> RG
-L --> UA
+L --> PV
+PV --> PL
+PV --> DL
+PL --> H
+PL --> LG
+PL --> RG
+PL --> UA
+DL --> DN
+PL --> PN
+H --> PR
 LG --> AR
 RG --> RR
-H --> PR
 AU --> AR
 MW --> LG
 MW --> RG
@@ -85,6 +122,14 @@ TW --> GC
 - [login/page.tsx](file://src/app/login/page.tsx)
 - [register/page.tsx](file://src/app/register/page.tsx)
 - [unauthorized/page.tsx](file://src/app/unauthorized/page.tsx)
+- [layout.tsx](file://src/app/(public)/layout.tsx)
+- [layout.tsx](file://src/app/(dashboards)/layout.tsx)
+- [PropertyCard.tsx](file://src/components/PropertyCard.tsx)
+- [DashboardNavbar.tsx](file://src/components/DashboardNavbar.tsx)
+- [PublicNavbar.tsx](file://src/components/PublicNavbar.tsx)
+- [Navbar.tsx](file://src/components/Navbar.tsx)
+- [Footer.tsx](file://src/components/Footer.tsx)
+- [Providers.tsx](file://src/components/Providers.tsx)
 - [auth.ts](file://src/lib/auth.ts)
 - [middleware.ts](file://src/middleware.ts)
 - [auth/route.ts](file://src/app/api/auth/[...nextauth]/route.ts)
@@ -103,18 +148,21 @@ TW --> GC
 - [tailwind.config.ts](file://tailwind.config.ts)
 
 ## Core Components
-- Application shell and metadata: The root layout sets metadata, fonts, and global styles, ensuring consistent branding and typography across pages.
-- Home page: Features hero content, area cards, and a call-to-action for landlords, with responsive grid layouts and gradient backgrounds.
-- Login page: A glass-morphism card with styled inputs and a submit button, integrating with NextAuth credentials provider.
-- Registration page: Role selection (student/landlord), form fields, and submission to the registration API endpoint.
-- Unauthorized page: Access denied messaging with navigation options to home or login.
-- Utilities: Shared helpers for class merging, currency formatting, dates, truncation, parsing arrays, initials, slugs, and safe search param building.
+- **Application Shell**: Root layout provides global providers and session management through Providers component
+- **Navigation Components**: Comprehensive navbar system with PublicNavbar for guest users, DashboardNavbar for authenticated users, and traditional Navbar for simplified contexts
+- **Property Display**: PropertyCard component for consistent property listing presentation with image handling, amenities display, and pricing
+- **Content Organization**: Layout components (PublicLayout, DashboardLayout) provide consistent page structure
+- **Utility Components**: Footer component with multi-column layout and comprehensive links
+- **Authentication Forms**: Login and registration pages with form validation and NextAuth integration
+- **Unauthorized Access**: Dedicated access denied page with navigation options
+- **Utilities**: Shared helpers for class merging, currency formatting, dates, truncation, parsing arrays, initials, slugs, and safe search param building
 
 Key styling and composition patterns:
-- Tailwind utilities and custom components/classes (buttons, cards, inputs, badges, skeletons) defined in global CSS.
-- Responsive breakpoints (sm, lg) drive layout changes across devices.
-- Gradient backgrounds and backdrop filters create depth and visual appeal.
-- Animation utilities (fade-in, slide-in, pulse) enhance perceived performance and UX.
+- Tailwind utilities and custom components/classes (buttons, cards, inputs, badges, skeletons) defined in global CSS
+- Responsive breakpoints (sm, lg) drive layout changes across devices
+- Gradient backgrounds and backdrop filters create depth and visual appeal
+- Animation utilities (fade-in, slide-in, pulse) enhance perceived performance and UX
+- Component composition follows utility-first approach with consistent design tokens
 
 **Section sources**
 - [layout.tsx](file://src/app/layout.tsx)
@@ -124,17 +172,27 @@ Key styling and composition patterns:
 - [unauthorized/page.tsx](file://src/app/unauthorized/page.tsx)
 - [globals.css](file://src/app/globals.css)
 - [utils.ts](file://src/lib/utils.ts)
+- [PropertyCard.tsx](file://src/components/PropertyCard.tsx)
+- [DashboardNavbar.tsx](file://src/components/DashboardNavbar.tsx)
+- [PublicNavbar.tsx](file://src/components/PublicNavbar.tsx)
+- [Navbar.tsx](file://src/components/Navbar.tsx)
+- [Footer.tsx](file://src/components/Footer.tsx)
+- [Providers.tsx](file://src/components/Providers.tsx)
 
 ## Architecture Overview
-The frontend integrates tightly with NextAuth for authentication and with API routes for data operations. Middleware enforces role-based access control and redirects to unauthorized when necessary. The design system is centralized in Tailwind configuration and global CSS.
+The frontend integrates tightly with NextAuth for authentication and with API routes for data operations. Middleware enforces role-based access control and redirects to unauthorized when necessary. The design system is centralized in Tailwind configuration and global CSS. A comprehensive component library provides reusable UI elements across different application contexts and user roles.
 
 ```mermaid
 sequenceDiagram
 participant U as "User"
 participant PG as "Next.js Page"
+participant NB as "Navigation Component"
 participant NA as "NextAuth Handler"
 participant AP as "API Route"
 participant DB as "Prisma"
+U->>PG : "Navigate to property page"
+PG->>NB : "Render appropriate navbar"
+NB->>U : "Display role-specific navigation"
 U->>PG : "Submit login form"
 PG->>NA : "POST credentials"
 NA->>DB : "Lookup user by email"
@@ -155,6 +213,8 @@ PG-->>U : "Success feedback"
 - [auth/route.ts](file://src/app/api/auth/[...nextauth]/route.ts)
 - [auth/register/route.ts](file://src/app/api/auth/register/route.ts)
 - [auth.ts](file://src/lib/auth.ts)
+- [PublicNavbar.tsx](file://src/components/PublicNavbar.tsx)
+- [DashboardNavbar.tsx](file://src/components/DashboardNavbar.tsx)
 
 **Section sources**
 - [auth.ts](file://src/lib/auth.ts)
@@ -172,6 +232,7 @@ PG-->>U : "Success feedback"
   - Utility classes for buttons, cards, inputs, badges, containers, gradients, and animations.
   - Scrollbar customization for webkit-based browsers.
 - Tailwind configuration extends color palettes for brand and primary, sets font families, and enables gradients.
+- Providers component wraps the application with SessionProvider for NextAuth integration.
 
 Responsive design:
 - Grids and flex utilities adapt columns and alignment at small and large screens.
@@ -186,6 +247,7 @@ Accessibility:
 - [layout.tsx](file://src/app/layout.tsx)
 - [globals.css](file://src/app/globals.css)
 - [tailwind.config.ts](file://tailwind.config.ts)
+- [Providers.tsx](file://src/components/Providers.tsx)
 
 ### Home Page Components
 - Hero section: Full-screen background gradient, animated decorative blobs, and a centered call-to-action block with two CTAs.
@@ -253,7 +315,7 @@ Middleware enforcement:
 - [middleware.ts](file://src/middleware.ts)
 
 ### Property Browsing Interface
-- The home page’s area cards link to property listings with location filters.
+- The home page's area cards link to property listings with location filters.
 - API route supports filtering by location, status, price range, pagination, sorting, and ordering.
 - Responses include items, totals, and pagination metadata.
 
@@ -266,7 +328,7 @@ Composition patterns:
 - [properties/route.ts](file://src/app/api/properties/route.ts)
 - [utils.ts](file://src/lib/utils.ts)
 
-### Tailwind CSS Styling Approach and Responsive Design
+### Tailwind CSS Styyling Approach and Responsive Design
 - Centralized design tokens via CSS variables and Tailwind theme extensions.
 - Utility-first approach with custom component classes for buttons, cards, inputs, and badges.
 - Responsive utilities (sm, lg) ensure appropriate spacing and layout scaling.
@@ -314,8 +376,94 @@ State management patterns:
 - [login/page.tsx](file://src/app/login/page.tsx)
 - [register/page.tsx](file://src/app/register/page.tsx)
 
+## Component Library
+
+### PropertyCard Component
+The PropertyCard component provides a standardized way to display property information consistently across the application. It handles property data formatting, image display, and interactive elements.
+
+Key features:
+- **Image Handling**: Displays property images with fallback SVG when no images are available
+- **Price Formatting**: Uses Intl.NumberFormat for Nigerian Naira currency display
+- **Amenities Display**: Shows up to 3 amenities with intelligent overflow handling
+- **Distance Information**: Displays distance to campus when available
+- **Interactive Elements**: View Details link with hover effects
+- **Status Indicators**: Available status badge with green background
+
+Design patterns:
+- **Type Safety**: Uses PropertyWithRelations interface for type-safe property data
+- **Conditional Rendering**: Handles missing data gracefully with fallbacks
+- **Responsive Design**: Adapts layout for different screen sizes
+- **Accessibility**: Proper alt text for images and semantic HTML structure
+
+**Section sources**
+- [PropertyCard.tsx](file://src/components/PropertyCard.tsx)
+
+### DashboardNavbar Component
+The DashboardNavbar provides a comprehensive navigation solution for authenticated users with role-specific features and dashboard integration.
+
+Key features:
+- **Logo and Branding**: Company logo with responsive sizing
+- **Global Search**: Centered search bar with absolute positioning
+- **Action Icons**: Messaging, notifications, and help center icons
+- **Profile Management**: User initials avatar with role display
+- **Dashboard Access**: Role-based dashboard navigation
+- **Logout Functionality**: One-click logout with callback URL
+
+Design patterns:
+- **Session Integration**: Uses NextAuth session for user data
+- **Dynamic Styling**: Color variations based on user role
+- **Responsive Layout**: Adapts from desktop to mobile navigation
+- **State Management**: Uses useState for mobile menu toggle
+
+**Section sources**
+- [DashboardNavbar.tsx](file://src/components/DashboardNavbar.tsx)
+
+### PublicNavbar Component
+The PublicNavbar serves as the primary navigation for guests and authenticated users, featuring responsive design and role-aware navigation.
+
+Key features:
+- **Multi-role Navigation**: Differentiates between student, landlord, and admin views
+- **Mobile Responsiveness**: Collapsible menu with hamburger icon
+- **Guest vs Authenticated Views**: Shows login/signup for guests, dashboard/logout for users
+- **Brand Consistency**: Maintains consistent styling across all pages
+- **Dynamic Dashboard Links**: Role-based dashboard navigation
+
+Design patterns:
+- **Session Awareness**: Uses NextAuth session for authentication state
+- **Path-based Logic**: Determines visibility based on current route
+- **Conditional Rendering**: Shows appropriate navigation based on user state
+- **Mobile-first Design**: Mobile menu as primary interaction method
+
+**Section sources**
+- [PublicNavbar.tsx](file://src/components/PublicNavbar.tsx)
+
+### Additional Components
+
+#### Navbar Component
+A simplified navigation component designed for contexts where full dashboard functionality is not required.
+
+Key features:
+- **Guest Mode**: Login and property listing options for non-authenticated users
+- **Authenticated Mode**: Dashboard access and profile display for logged-in users
+- **Consistent Styling**: Matches the overall design system
+- **Minimal Dependencies**: Lightweight implementation focused on core navigation
+
+#### Footer Component
+Provides comprehensive footer with multi-column layout and essential links.
+
+Key features:
+- **Multi-column Grid**: Four-column layout for different footer sections
+- **Brand Identity**: Logo and company information
+- **Quick Links**: Essential navigation links
+- **Legal Information**: Terms and privacy policy links
+- **Contact Information**: Support email and phone number
+
+**Section sources**
+- [Navbar.tsx](file://src/components/Navbar.tsx)
+- [Footer.tsx](file://src/components/Footer.tsx)
+
 ## Dependency Analysis
-The frontend depends on Next.js App Router, NextAuth for authentication, and Prisma for database operations. Tailwind CSS and PostCSS provide styling. Middleware enforces route protection.
+The frontend depends on Next.js App Router, NextAuth for authentication, and Prisma for database operations. Tailwind CSS and PostCSS provide styling. Middleware enforces route protection. The component library adds reusable UI elements that enhance maintainability and consistency.
 
 ```mermaid
 graph LR
@@ -332,6 +480,15 @@ AUTH["lib/auth.ts"]
 ARH["api/auth/[...nextauth]/route.ts"]
 RRG["api/auth/register/route.ts"]
 PRP["api/properties/route.ts"]
+COMP["Component Library"]
+PL["public layout.tsx"]
+DL["dashboard layout.tsx"]
+COMP --> PC["PropertyCard.tsx"]
+COMP --> DN["DashboardNavbar.tsx"]
+COMP --> PN["PublicNavbar.tsx"]
+COMP --> NB["Navbar.tsx"]
+COMP --> FT["Footer.tsx"]
+COMP --> PV["Providers.tsx"]
 P --> TWC
 TWC --> GCSS
 GCSS --> LYT
@@ -339,6 +496,12 @@ LYT --> HP
 LYT --> LGN
 LYT --> REG
 LYT --> UN
+PL --> HP
+PL --> LGN
+PL --> REG
+PL --> UN
+DL --> DN
+PL --> PN
 MID --> LGN
 MID --> REG
 MID --> UN
@@ -362,6 +525,14 @@ HP --> PRP
 - [auth/route.ts](file://src/app/api/auth/[...nextauth]/route.ts)
 - [auth/register/route.ts](file://src/app/api/auth/register/route.ts)
 - [properties/route.ts](file://src/app/api/properties/route.ts)
+- [PropertyCard.tsx](file://src/components/PropertyCard.tsx)
+- [DashboardNavbar.tsx](file://src/components/DashboardNavbar.tsx)
+- [PublicNavbar.tsx](file://src/components/PublicNavbar.tsx)
+- [Navbar.tsx](file://src/components/Navbar.tsx)
+- [Footer.tsx](file://src/components/Footer.tsx)
+- [Providers.tsx](file://src/components/Providers.tsx)
+- [layout.tsx](file://src/app/(public)/layout.tsx)
+- [layout.tsx](file://src/app/(dashboards)/layout.tsx)
 
 **Section sources**
 - [package.json](file://package.json)
@@ -383,8 +554,7 @@ HP --> PRP
 - Images are not rendered in the provided pages; when used, lazy-loading and modern formats should be considered.
 - Minimizing re-renders by leveraging server-rendered pages and client-side navigation.
 - Tailwind purging is configured via content globs to reduce bundle size.
-
-[No sources needed since this section provides general guidance]
+- Component library promotes code reuse and reduces duplication across the application.
 
 ## Troubleshooting Guide
 - Authentication failures:
@@ -397,6 +567,10 @@ HP --> PRP
 - Access denied:
   - Ensure JWT token contains correct role claims.
   - Verify middleware matchers and redirect logic.
+- Component issues:
+  - Verify component props are properly typed and validated.
+  - Check for missing dependencies in component imports.
+  - Ensure proper session provider wrapping for authenticated components.
 
 **Section sources**
 - [auth.ts](file://src/lib/auth.ts)
@@ -404,9 +578,7 @@ HP --> PRP
 - [middleware.ts](file://src/middleware.ts)
 
 ## Conclusion
-RentalHub-BOUESTI’s frontend employs a clean, utility-driven design system with Tailwind CSS and a cohesive global stylesheet. The layout, home page, and forms are responsive and accessible, with clear composition patterns. Authentication is integrated via NextAuth with robust middleware protection and API-backed registration. The property browsing interface leverages server-side filtering and pagination. Together, these components deliver a consistent, user-friendly experience across devices.
-
-[No sources needed since this section summarizes without analyzing specific files]
+RentalHub-BOUESTI's frontend employs a clean, utility-driven design system with Tailwind CSS and a cohesive global stylesheet. The layout, home page, and forms are responsive and accessible, with clear composition patterns. The new component library significantly enhances maintainability and consistency across the application. Authentication is integrated via NextAuth with robust middleware protection and API-backed registration. The property browsing interface leverages server-side filtering and pagination. The comprehensive component library provides reusable, type-safe UI elements that improve development efficiency and user experience across different user roles and contexts.
 
 ## Appendices
 

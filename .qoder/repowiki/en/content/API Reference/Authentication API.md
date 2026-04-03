@@ -6,13 +6,22 @@
 - [src/app/api/auth/[...nextauth]/route.ts](file://src/app/api/auth/[...nextauth]/route.ts)
 - [src/lib/auth.ts](file://src/lib/auth.ts)
 - [src/middleware.ts](file://src/middleware.ts)
-- [src/app/login/page.tsx](file://src/app/login/page.tsx)
-- [src/app/register/page.tsx](file://src/app/register/page.tsx)
-- [src/app/unauthorized/page.tsx](file://src/app/unauthorized/page.tsx)
+- [src/actions/auth.actions.ts](file://src/actions/auth.actions.ts)
+- [src/app/(auth)/login/page.tsx](file://src/app/(auth)/login/page.tsx)
+- [src/app/(auth)/register/page.tsx](file://src/app/(auth)/register/page.tsx)
+- [src/app/(auth)/forgot-password/page.tsx](file://src/app/(auth)/forgot-password/page.tsx)
 - [prisma/schema.prisma](file://prisma/schema.prisma)
-- [prisma/seed.ts](file://prisma/seed.ts)
 - [package.json](file://package.json)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Added comprehensive documentation for the new authentication API endpoints
+- Updated middleware documentation to reflect the new role-based routing system
+- Enhanced registration endpoint documentation with improved validation rules
+- Added detailed coverage of NextAuth.js integration and JWT handling
+- Expanded authentication actions documentation for server-side operations
+- Updated frontend authentication pages documentation with new login/logout flows
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -29,16 +38,19 @@
 This document provides comprehensive API documentation for the Authentication endpoints in the RentalHub-BOUESTI application. It covers:
 - User registration endpoint with validation, password hashing, and role assignment
 - NextAuth.js integration endpoint for session management and JWT handling
+- Role-based routing system with middleware enforcement
+- Authentication actions for server-side operations
 - HTTP methods, URL patterns, request/response schemas, error handling, and security considerations
-- Authentication middleware requirements and session persistence
+- Practical usage examples for login, logout, and user management flows
 
 ## Project Structure
-The authentication system spans API routes, NextAuth configuration, middleware, and database schema:
+The authentication system spans API routes, NextAuth configuration, middleware, authentication actions, and frontend pages:
 - Registration API: POST /api/auth/register
 - NextAuth integration: /api/auth/[...nextauth]
-- Frontend login and registration pages
-- Middleware for protected routes
-- Prisma schema defining roles and verification statuses
+- Authentication actions: Server-side operations for registration, login, and user management
+- Role-based routing: Student, landlord, and admin dashboards
+- Frontend authentication pages: Login, registration, and password recovery
+- Middleware for protected routes with role-based access control
 
 ```mermaid
 graph TB
@@ -46,74 +58,80 @@ subgraph "API Routes"
 REG["POST /api/auth/register<br/>Register new user"]
 NA["GET/POST /api/auth/[...nextauth]<br/>NextAuth integration"]
 end
+subgraph "Authentication Actions"
+ACTIONS["Server Actions<br/>registerUser, loginUser,<br/>getUserByEmail, updateUserVerificationStatus"]
+end
 subgraph "NextAuth Config"
 AUTH["lib/auth.ts<br/>Credentials provider + JWT callbacks"]
 end
 subgraph "Middleware"
-MW["middleware.ts<br/>Route protection + role checks"]
+MW["middleware.ts<br/>Role-based route protection"]
 end
-subgraph "Frontend"
-LOGIN["/login<br/>Login form"]
+subgraph "Frontend Pages"
+LOGIN["/login<br/>Login form + role selection"]
 REGISTER["/register<br/>Registration form"]
-UNAUTH["/unauthorized<br/>Access denied"]
+FORGOT["/forgot-password<br/>Password recovery info"]
 end
 subgraph "Database"
 SCHEMA["Prisma Schema<br/>User model + enums"]
-SEED["Seed Script<br/>Admin creation"]
 end
 LOGIN --> NA
-REGISTER --> REG
+REGISTER --> ACTIONS
+ACTIONS --> REG
 REG --> SCHEMA
 NA --> AUTH
 AUTH --> SCHEMA
 MW --> NA
-MW --> UNAUTH
-SEED --> SCHEMA
+LOGIN --> ACTIONS
+REGISTER --> ACTIONS
 ```
 
 **Diagram sources**
 - [src/app/api/auth/register/route.ts:1-90](file://src/app/api/auth/register/route.ts#L1-L90)
-- [src/app/api/auth/[...nextauth]/route.ts](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
-- [src/lib/auth.ts:1-117](file://src/lib/auth.ts#L1-L117)
-- [src/middleware.ts:1-48](file://src/middleware.ts#L1-L48)
-- [src/app/login/page.tsx:1-116](file://src/app/login/page.tsx#L1-L116)
-- [src/app/register/page.tsx:1-128](file://src/app/register/page.tsx#L1-L128)
-- [src/app/unauthorized/page.tsx:1-35](file://src/app/unauthorized/page.tsx#L1-L35)
-- [prisma/schema.prisma:1-130](file://prisma/schema.prisma#L1-L130)
-- [prisma/seed.ts:1-143](file://prisma/seed.ts#L1-L143)
+- [src/app/api/auth/[...nextauth]/route.ts:1-7](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
+- [src/actions/auth.actions.ts:1-208](file://src/actions/auth.actions.ts#L1-L208)
+- [src/lib/auth.ts:1-119](file://src/lib/auth.ts#L1-L119)
+- [src/middleware.ts:1-76](file://src/middleware.ts#L1-L76)
+- [src/app/(auth)/login/page.tsx:1-206](file://src/app/(auth)/login/page.tsx#L1-L206)
+- [src/app/(auth)/register/page.tsx:1-244](file://src/app/(auth)/register/page.tsx#L1-L244)
+- [src/app/(auth)/forgot-password/page.tsx:1-25](file://src/app/(auth)/forgot-password/page.tsx#L1-L25)
+- [prisma/schema.prisma:1-136](file://prisma/schema.prisma#L1-L136)
 
 **Section sources**
 - [src/app/api/auth/register/route.ts:1-90](file://src/app/api/auth/register/route.ts#L1-L90)
-- [src/app/api/auth/[...nextauth]/route.ts](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
-- [src/lib/auth.ts:1-117](file://src/lib/auth.ts#L1-L117)
-- [src/middleware.ts:1-48](file://src/middleware.ts#L1-L48)
-- [prisma/schema.prisma:1-130](file://prisma/schema.prisma#L1-L130)
+- [src/app/api/auth/[...nextauth]/route.ts:1-7](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
+- [src/actions/auth.actions.ts:1-208](file://src/actions/auth.actions.ts#L1-L208)
+- [src/lib/auth.ts:1-119](file://src/lib/auth.ts#L1-L119)
+- [src/middleware.ts:1-76](file://src/middleware.ts#L1-L76)
+- [prisma/schema.prisma:1-136](file://prisma/schema.prisma#L1-L136)
 
 ## Core Components
 - Registration endpoint: Validates input, enforces role constraints, hashes passwords, prevents duplicate emails, and returns user data with verification status.
 - NextAuth integration: Provides credentials-based authentication, JWT token storage, session management, and role-aware redirects.
-- Middleware: Protects routes by enforcing authentication and role-based access control.
+- Authentication actions: Server-side functions for user registration, login validation, user retrieval, and verification status updates.
+- Role-based routing: Middleware enforces authentication and role-based access control across student, landlord, and admin dashboards.
 - Database schema: Defines roles (STUDENT, LANDLORD, ADMIN) and verification statuses (UNVERIFIED, VERIFIED, SUSPENDED).
 
 **Section sources**
 - [src/app/api/auth/register/route.ts:13-89](file://src/app/api/auth/register/route.ts#L13-L89)
-- [src/lib/auth.ts:14-90](file://src/lib/auth.ts#L14-L90)
-- [src/middleware.ts:11-47](file://src/middleware.ts#L11-L47)
+- [src/actions/auth.actions.ts:24-93](file://src/actions/auth.actions.ts#L24-L93)
+- [src/lib/auth.ts:36-119](file://src/lib/auth.ts#L36-L119)
+- [src/middleware.ts:5-66](file://src/middleware.ts#L5-L66)
 - [prisma/schema.prisma:17-27](file://prisma/schema.prisma#L17-L27)
 
 ## Architecture Overview
-The authentication architecture integrates NextAuth.js with a custom credentials provider and Prisma-backed user storage. Registration uses bcrypt for password hashing and creates users with default verification status. NextAuth manages sessions via JWT tokens and enforces role-based access control through middleware.
+The authentication architecture integrates NextAuth.js with a custom credentials provider and Prisma-backed user storage. Registration uses bcrypt for password hashing and creates users with default verification status. NextAuth manages sessions via JWT tokens and enforces role-based access control through middleware. Authentication actions provide server-side operations for enhanced security and flexibility.
 
 ```mermaid
 sequenceDiagram
 participant Client as "Client"
-participant Login as "/login"
+participant LoginPage as "/login"
 participant NextAuth as "NextAuth Handler"
 participant AuthCfg as "lib/auth.ts"
 participant Prisma as "Prisma User"
 participant MW as "middleware.ts"
-Client->>Login : Submit credentials
-Login->>NextAuth : POST /api/auth/callback/credentials
+Client->>LoginPage : Submit credentials + role
+LoginPage->>NextAuth : POST /api/auth/callback/credentials
 NextAuth->>AuthCfg : authorize(credentials)
 AuthCfg->>Prisma : findUnique(email)
 Prisma-->>AuthCfg : User record
@@ -125,15 +143,15 @@ NextAuth->>NextAuth : session callback -> session
 NextAuth-->>Client : Set JWT cookie/session
 Client->>MW : Navigate to protected route
 MW->>MW : Check token + role
-MW-->>Client : Allow or redirect to /unauthorized
+MW-->>Client : Allow or redirect to appropriate dashboard
 ```
 
 **Diagram sources**
-- [src/app/login/page.tsx:51-103](file://src/app/login/page.tsx#L51-L103)
-- [src/app/api/auth/[...nextauth]/route.ts](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
-- [src/lib/auth.ts:22-52](file://src/lib/auth.ts#L22-L52)
-- [prisma/schema.prisma:44-61](file://prisma/schema.prisma#L44-L61)
-- [src/middleware.ts:11-38](file://src/middleware.ts#L11-L38)
+- [src/app/(auth)/login/page.tsx:19-77](file://src/app/(auth)/login/page.tsx#L19-L77)
+- [src/app/api/auth/[...nextauth]/route.ts:1-7](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
+- [src/lib/auth.ts:53-92](file://src/lib/auth.ts#L53-L92)
+- [prisma/schema.prisma:44-62](file://prisma/schema.prisma#L44-L62)
+- [src/middleware.ts:15-66](file://src/middleware.ts#L15-L66)
 
 ## Detailed Component Analysis
 
@@ -190,8 +208,28 @@ Select --> Ok201["Return 201 with user data"]
 
 **Section sources**
 - [src/app/api/auth/register/route.ts:1-90](file://src/app/api/auth/register/route.ts#L1-L90)
-- [prisma/schema.prisma:44-61](file://prisma/schema.prisma#L44-L61)
-- [prisma/seed.ts:104-113](file://prisma/seed.ts#L104-L113)
+- [prisma/schema.prisma:44-62](file://prisma/schema.prisma#L44-L62)
+
+### Authentication Actions: Server-Side Operations
+- Purpose: Provide server-side authentication operations with enhanced security and validation.
+- Available Actions:
+  - registerUser: Complete user registration with validation and password hashing
+  - registerUserFromForm: Registration from FormData for form submissions
+  - loginUser: Login validation (client-side handling via NextAuth)
+  - loginUserFromForm: Login from FormData
+  - getUserByEmail: Retrieve user information by email
+  - updateUserVerificationStatus: Update user verification status (admin only)
+- Request/Response Patterns:
+  - All actions return structured objects with success/error indicators
+  - Passwords are hashed using bcrypt with salt factor 12
+  - Email normalization to lowercase for consistency
+- Security Features:
+  - Server-side validation prevents bypassing client-side checks
+  - Direct database access restricted to authorized operations
+  - Passwords never stored in plain text
+
+**Section sources**
+- [src/actions/auth.actions.ts:1-208](file://src/actions/auth.actions.ts#L1-L208)
 
 ### NextAuth.js Integration: /api/auth/[...nextauth]
 - Purpose: Provide NextAuth.js endpoints for authentication flows, session management, and JWT handling.
@@ -237,67 +275,95 @@ NextAuth-->>Client : Set JWT cookie/session
 ```
 
 **Diagram sources**
-- [src/app/login/page.tsx:51-103](file://src/app/login/page.tsx#L51-L103)
-- [src/app/api/auth/[...nextauth]/route.ts](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
-- [src/lib/auth.ts:22-72](file://src/lib/auth.ts#L22-L72)
-- [prisma/schema.prisma:44-61](file://prisma/schema.prisma#L44-L61)
+- [src/app/(auth)/login/page.tsx:19-77](file://src/app/(auth)/login/page.tsx#L19-L77)
+- [src/app/api/auth/[...nextauth]/route.ts:1-7](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
+- [src/lib/auth.ts:53-92](file://src/lib/auth.ts#L53-L92)
+- [prisma/schema.prisma:44-62](file://prisma/schema.prisma#L44-L62)
 
 **Section sources**
-- [src/app/api/auth/[...nextauth]/route.ts](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
-- [src/lib/auth.ts:1-117](file://src/lib/auth.ts#L1-L117)
-- [src/app/login/page.tsx:51-103](file://src/app/login/page.tsx#L51-L103)
+- [src/app/api/auth/[...nextauth]/route.ts:1-7](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
+- [src/lib/auth.ts:1-119](file://src/lib/auth.ts#L1-L119)
+- [src/app/(auth)/login/page.tsx:19-77](file://src/app/(auth)/login/page.tsx#L19-L77)
 
-### Authentication Middleware and Route Protection
+### Role-Based Routing and Middleware Protection
 - Purpose: Enforce authentication and role-based access control for protected routes.
-- Protected Paths:
-  - /dashboard/:path*
-  - /admin/:path*
-  - /properties/new
-  - /bookings/:path*
-- Role-Based Restrictions:
-  - /admin requires ADMIN role
-  - /dashboard/landlord requires LANDLORD or ADMIN
-  - /dashboard/student requires STUDENT
-- Behavior:
-  - Unauthenticated requests are redirected to /login
-  - Unauthorized role attempts are redirected to /unauthorized
+- Protected Path Groups:
+  - /student: Accessible to STUDENT role only
+  - /landlord: Accessible to LANDLORD role only
+  - /admin: Accessible to ADMIN role only
+- Middleware Logic:
+  - Extracts JWT token from request using next-auth/jwt
+  - Validates token existence and role permissions
+  - Redirects unauthenticated users to /login with callbackUrl
+  - Redirects unauthorized users to their appropriate dashboard
 - Token Access:
-  - Middleware reads token from req.nextauth.token and applies checks.
+  - Middleware reads token from req.nextauth.token and applies role checks.
+  - Supports role-based redirects based on user's actual role.
+- Route Matching:
+  - Uses matcher configuration for efficient route pattern matching
+  - Processes all subpaths under protected groups
 
 ```mermaid
 flowchart TD
-Start(["Incoming Request"]) --> Match["Match against protected paths"]
-Match --> |Not matched| Allow["Allow request"]
-Match --> |Matched| HasToken{"Has token?"}
-HasToken --> |No| RedirectLogin["Redirect to /login"]
-HasToken --> |Yes| CheckRole{"Role allowed?"}
-CheckRole --> |No| RedirectUnauth["Redirect to /unauthorized"]
-CheckRole --> |Yes| Allow
+Start(["Incoming Request"]) --> CheckPrefix["Check if path starts with protected prefixes"]
+CheckPrefix --> |No| Allow["Allow request"]
+CheckPrefix --> |Yes| GetToken["Extract JWT token"]
+GetToken --> HasToken{"Token exists?"}
+HasToken --> |No| RedirectLogin["Redirect to /login with callbackUrl"]
+HasToken --> |Yes| CheckRole["Check role permissions"]
+CheckRole --> Allowed{"Allowed for user role?"}
+Allowed --> |Yes| Allow
+Allowed --> |No| RedirectDashboard["Redirect to user's dashboard"]
 ```
 
 **Diagram sources**
-- [src/middleware.ts:11-38](file://src/middleware.ts#L11-L38)
-- [src/app/unauthorized/page.tsx:9-34](file://src/app/unauthorized/page.tsx#L9-L34)
+- [src/middleware.ts:15-66](file://src/middleware.ts#L15-L66)
 
 **Section sources**
-- [src/middleware.ts:1-48](file://src/middleware.ts#L1-L48)
-- [src/app/unauthorized/page.tsx:1-35](file://src/app/unauthorized/page.tsx#L1-L35)
+- [src/middleware.ts:1-76](file://src/middleware.ts#L1-L76)
 
-### Database Model and Seed
+### Frontend Authentication Pages
+- Login Page (/login):
+  - Role selector allows users to specify their intended role
+  - Credentials-based authentication via NextAuth
+  - Post-login role verification to prevent role mismatch
+  - Automatic redirection based on actual user role
+  - Password recovery link for account issues
+- Registration Page (/register):
+  - Role selection with automatic URL parameter detection
+  - Password confirmation validation
+  - Real-time password strength checking
+  - Terms and conditions agreement requirement
+  - Success feedback and automatic redirect to login
+- Password Recovery (/forgot-password):
+  - Current limitation: Password reset not implemented
+  - Support contact information provided
+  - Clear messaging about account recovery process
+
+**Section sources**
+- [src/app/(auth)/login/page.tsx:1-206](file://src/app/(auth)/login/page.tsx#L1-L206)
+- [src/app/(auth)/register/page.tsx:1-244](file://src/app/(auth)/register/page.tsx#L1-L244)
+- [src/app/(auth)/forgot-password/page.tsx:1-25](file://src/app/(auth)/forgot-password/page.tsx#L1-L25)
+
+### Database Model and Schema
 - User Model:
   - Fields: id, name, email (unique), password, role (default STUDENT), verificationStatus (default UNVERIFIED), timestamps
   - Relations: properties (landlord), bookings (student)
 - Enums:
   - Role: STUDENT, LANDLORD, ADMIN
   - VerificationStatus: UNVERIFIED, VERIFIED, SUSPENDED
-- Admin Creation:
-  - Seed script creates an ADMIN user with hashed password and verified status.
-  - Role cannot be assigned via registration endpoint.
+- Indexes:
+  - Unique index on email for fast lookups
+  - Index on role for role-based filtering
+  - Additional indexes on frequently queried fields
+- Security:
+  - Passwords stored as bcrypt hashes
+  - Email normalization to lowercase
+  - Verification status tracking for account lifecycle management
 
 **Section sources**
-- [prisma/schema.prisma:44-61](file://prisma/schema.prisma#L44-L61)
+- [prisma/schema.prisma:44-62](file://prisma/schema.prisma#L44-L62)
 - [prisma/schema.prisma:17-27](file://prisma/schema.prisma#L17-L27)
-- [prisma/seed.ts:61-122](file://prisma/seed.ts#L61-L122)
 
 ## Dependency Analysis
 Key dependencies and integrations:
@@ -305,28 +371,33 @@ Key dependencies and integrations:
 - bcryptjs: Handles password hashing and verification
 - Prisma: Database ORM for user storage and queries
 - Next.js Edge Middleware: Enforces route protection and role checks
+- Authentication Actions: Server-side operations for enhanced security
 - Environment Variables: NEXTAUTH_SECRET for signing JWTs
 
 ```mermaid
 graph LR
 REG["POST /api/auth/register"] --> BC["bcryptjs"]
 REG --> PRISMA["Prisma User"]
+ACTIONS["Authentication Actions"] --> BC
+ACTIONS --> PRISMA
 NA["NextAuth Handler"] --> AUTHCFG["lib/auth.ts"]
 AUTHCFG --> BC
 AUTHCFG --> PRISMA
 MW["middleware.ts"] --> NA
-MW --> UNAUTH["/unauthorized"]
 AUTHCFG --> ENV["NEXTAUTH_SECRET"]
+LOGIN["/login"] --> ACTIONS
+REGISTER["/register"] --> ACTIONS
 ```
 
 **Diagram sources**
 - [src/app/api/auth/register/route.ts:8-11](file://src/app/api/auth/register/route.ts#L8-L11)
-- [src/lib/auth.ts:8-12](file://src/lib/auth.ts#L8-L12)
-- [src/middleware.ts:8-38](file://src/middleware.ts#L8-L38)
-- [package.json:19-26](file://package.json#L19-L26)
+- [src/actions/auth.actions.ts:3-5](file://src/actions/auth.actions.ts#L3-L5)
+- [src/lib/auth.ts:5-6](file://src/lib/auth.ts#L5-L6)
+- [src/middleware.ts:3](file://src/middleware.ts#L3)
+- [package.json:21-27](file://package.json#L21-L27)
 
 **Section sources**
-- [package.json:19-26](file://package.json#L19-L26)
+- [package.json:20-32](file://package.json#L20-L32)
 - [src/lib/auth.ts:87-89](file://src/lib/auth.ts#L87-L89)
 
 ## Performance Considerations
@@ -334,6 +405,7 @@ AUTHCFG --> ENV["NEXTAUTH_SECRET"]
 - Session strategy: JWT reduces server-side session storage overhead; keep payloads minimal (as implemented).
 - Database indexing: Unique email index and role index improve lookup performance.
 - Middleware checks: Minimal overhead due to token presence checks and simple role comparisons.
+- Authentication actions: Server-side processing adds security but may increase latency for certain operations.
 
 ## Troubleshooting Guide
 - Registration errors:
@@ -347,15 +419,18 @@ AUTHCFG --> ENV["NEXTAUTH_SECRET"]
   - Suspended account: Contact support if blocked.
 - Middleware redirections:
   - /login: Authenticate first.
-  - /unauthorized: Insufficient privileges for the requested route.
+  - User's dashboard: Redirected based on actual role when role mismatch occurs.
+- Authentication actions:
+  - Server-side validation failures: Check input parameters and database connectivity.
+  - Role verification failures: Ensure user has proper role assignment in database.
 - Environment configuration:
   - NEXTAUTH_SECRET must be set; otherwise, JWT signing will fail.
 
 **Section sources**
 - [src/app/api/auth/register/route.ts:25-56](file://src/app/api/auth/register/route.ts#L25-L56)
-- [src/lib/auth.ts:22-42](file://src/lib/auth.ts#L22-L42)
-- [src/middleware.ts:17-29](file://src/middleware.ts#L17-L29)
-- [src/app/unauthorized/page.tsx:9-34](file://src/app/unauthorized/page.tsx#L9-L34)
+- [src/actions/auth.actions.ts:26-52](file://src/actions/auth.actions.ts#L26-L52)
+- [src/lib/auth.ts:53-82](file://src/lib/auth.ts#L53-L82)
+- [src/middleware.ts:35-60](file://src/middleware.ts#L35-L60)
 
 ## Conclusion
-The Authentication API provides a secure and extensible foundation for user registration and session management. Registration enforces strong validation and hashing, while NextAuth.js handles credentials-based authentication, JWT token lifecycle, and role-aware routing. Middleware ensures protected routes remain inaccessible to unauthorized users. Together, these components deliver a robust authentication experience aligned with the application’s role model and security requirements.
+The Authentication API provides a secure and extensible foundation for user registration and session management. Registration enforces strong validation and hashing, while NextAuth.js handles credentials-based authentication, JWT token lifecycle, and role-aware routing. Authentication actions offer server-side security enhancements, and middleware ensures protected routes remain inaccessible to unauthorized users. The role-based routing system provides intuitive navigation based on user roles, creating a seamless experience across student, landlord, and admin dashboards. Together, these components deliver a robust authentication experience aligned with the application's role model and security requirements.

@@ -7,15 +7,25 @@
 - [src/lib/prisma.ts](file://src/lib/prisma.ts)
 - [src/lib/auth.ts](file://src/lib/auth.ts)
 - [src/lib/utils.ts](file://src/lib/utils.ts)
+- [src/lib/schools.ts](file://src/lib/schools.ts)
 - [src/app/api/auth/[...nextauth]/route.ts](file://src/app/api/auth/[...nextauth]/route.ts)
 - [src/app/api/auth/register/route.ts](file://src/app/api/auth/register/route.ts)
 - [src/app/api/bookings/route.ts](file://src/app/api/bookings/route.ts)
 - [src/app/api/properties/route.ts](file://src/app/api/properties/route.ts)
 - [src/app/api/properties/[id]/status/route.ts](file://src/app/api/properties/[id]/status/route.ts)
 - [src/app/api/locations/route.ts](file://src/app/api/locations/route.ts)
-- [src/app/register/page.tsx](file://src/app/register/page.tsx)
-- [src/app/login/page.tsx](file://src/app/login/page.tsx)
+- [src/app/(auth)/register/page.tsx](file://src/app/(auth)/register/page.tsx)
+- [src/app/(auth)/login/page.tsx](file://src/app/(auth)/login/page.tsx)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Added comprehensive documentation for new API endpoints and their type definitions
+- Enhanced authentication integration documentation with NextAuth module augmentation
+- Expanded utility functions documentation including new formatting and parsing helpers
+- Updated property search and filtering capabilities documentation
+- Added school location keyword mapping system documentation
+- Enhanced booking management API documentation with PATCH endpoint support
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -42,7 +52,7 @@ This document provides comprehensive TypeScript documentation for the shared typ
 - Examples of type usage in components, API routes, and database operations
 
 ## Project Structure
-The type system is centralized under a single shared index file that re-exports Prisma enums and defines application-specific types. Prisma’s schema defines the canonical database models and enums. Utilities provide safe parsing and formatting helpers. API routes consume these types to maintain consistent request/response shapes and enforce validation.
+The type system is centralized under a single shared index file that re-exports Prisma enums and defines application-specific types. Prisma's schema defines the canonical database models and enums. Utilities provide safe parsing and formatting helpers. API routes consume these types to maintain consistent request/response shapes and enforce validation.
 
 ```mermaid
 graph TB
@@ -66,8 +76,9 @@ StatusRoute["src/app/api/properties/[id]/status/route.ts"]
 LocRoute["src/app/api/locations/route.ts"]
 end
 subgraph "UI"
-LoginPage["src/app/login/page.tsx"]
-RegisterPage["src/app/register/page.tsx"]
+LoginPage["src/app/(auth)/login/page.tsx"]
+RegisterPage["src/app/(auth)/register/page.tsx"]
+Schools["src/lib/schools.ts"]
 end
 Schema --> Client
 Client --> TIndex
@@ -80,21 +91,23 @@ TIndex --> StatusRoute
 TIndex --> LocRoute
 TIndex --> LoginPage
 TIndex --> RegisterPage
+TIndex --> Schools
 ```
 
 **Diagram sources**
 - [src/types/index.ts:1-109](file://src/types/index.ts#L1-L109)
 - [prisma/schema.prisma:15-39](file://prisma/schema.prisma#L15-L39)
 - [src/lib/prisma.ts:1-27](file://src/lib/prisma.ts#L1-L27)
-- [src/lib/auth.ts:1-117](file://src/lib/auth.ts#L1-L117)
+- [src/lib/auth.ts:1-119](file://src/lib/auth.ts#L1-L119)
 - [src/app/api/auth/[...nextauth]/route.ts:1-7](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
 - [src/app/api/auth/register/route.ts:1-90](file://src/app/api/auth/register/route.ts#L1-L90)
-- [src/app/api/bookings/route.ts:1-109](file://src/app/api/bookings/route.ts#L1-L109)
-- [src/app/api/properties/route.ts:1-119](file://src/app/api/properties/route.ts#L1-L119)
-- [src/app/api/properties/[id]/status/route.ts:1-52](file://src/app/api/properties/[id]/status/route.ts#L1-L52)
+- [src/app/api/bookings/route.ts:1-182](file://src/app/api/bookings/route.ts#L1-L182)
+- [src/app/api/properties/route.ts:1-162](file://src/app/api/properties/route.ts#L1-L162)
+- [src/app/api/properties/[id]/status/route.ts:1-69](file://src/app/api/properties/[id]/status/route.ts#L1-L69)
 - [src/app/api/locations/route.ts:1-29](file://src/app/api/locations/route.ts#L1-L29)
-- [src/app/login/page.tsx:1-116](file://src/app/login/page.tsx#L1-L116)
-- [src/app/register/page.tsx:1-128](file://src/app/register/page.tsx#L1-L128)
+- [src/app/(auth)/login/page.tsx:1-206](file://src/app/(auth)/login/page.tsx#L1-L206)
+- [src/app/(auth)/register/page.tsx:1-244](file://src/app/(auth)/register/page.tsx#L1-L244)
+- [src/lib/schools.ts:1-31](file://src/lib/schools.ts#L1-L31)
 
 **Section sources**
 - [src/types/index.ts:1-109](file://src/types/index.ts#L1-L109)
@@ -403,6 +416,7 @@ API-->>Client : "ApiResponse"
 ### Bookings API Route
 - GET: lists bookings filtered by role (student, landlord, admin)
 - POST: student-only creation, validates property availability and duplicates, sets initial status to PENDING
+- PATCH: updates booking status with role-based restrictions and validation
 
 ```mermaid
 sequenceDiagram
@@ -429,6 +443,7 @@ API-->>Client : "ApiResponse"
 **Section sources**
 - [src/app/api/bookings/route.ts:11-45](file://src/app/api/bookings/route.ts#L11-L45)
 - [src/app/api/bookings/route.ts:47-108](file://src/app/api/bookings/route.ts#L47-L108)
+- [src/app/api/bookings/route.ts:110-182](file://src/app/api/bookings/route.ts#L110-L182)
 
 ### Locations API Route
 - GET: returns all locations ordered by classification and name for UI dropdowns
@@ -441,14 +456,15 @@ API-->>Client : "ApiResponse"
 - Login page: renders credentials form fields aligned with LoginFormData interface
 
 **Section sources**
-- [src/app/register/page.tsx:50-115](file://src/app/register/page.tsx#L50-L115)
-- [src/app/login/page.tsx:51-103](file://src/app/login/page.tsx#L51-L103)
+- [src/app/(auth)/register/page.tsx:50-115](file://src/app/(auth)/register/page.tsx#L50-L115)
+- [src/app/(auth)/login/page.tsx:51-103](file://src/app/(auth)/login/page.tsx#L51-L103)
 
 ### Utilities and Helpers
 - Safe parsing helpers: parseAmenities and parseImages accept unknown input and return string[]
 - Formatting helpers: formatNaira, formatDate, truncate, getInitials, slugify, buildSearchParams
 - Display label maps: ROLE_LABELS, PROPERTY_STATUS_LABELS, BOOKING_STATUS_LABELS
 - Amenities list: AMENITIES_LIST as const
+- School location keywords: SCHOOL_OPTIONS and SCHOOL_LOCATION_KEYWORDS for enhanced property search
 
 These utilities complement the type system by ensuring robust input handling and consistent presentation.
 
@@ -459,6 +475,7 @@ These utilities complement the type system by ensuring robust input handling and
 - [src/lib/utils.ts:87-96](file://src/lib/utils.ts#L87-L96)
 - [src/lib/utils.ts:98-117](file://src/lib/utils.ts#L98-L117)
 - [src/lib/utils.ts:119-136](file://src/lib/utils.ts#L119-L136)
+- [src/lib/schools.ts:1-31](file://src/lib/schools.ts#L1-L31)
 
 ## Dependency Analysis
 The type system exhibits low coupling and high cohesion:
@@ -476,6 +493,7 @@ TypesIndex --> APIRoutes["API Routes"]
 AuthConfig --> NextAuthRoute["NextAuth Route"]
 Utils["src/lib/utils.ts"] --> TypesIndex
 Utils --> APIRoutes
+Schools["src/lib/schools.ts"] --> TypesIndex
 ```
 
 **Diagram sources**
@@ -485,17 +503,20 @@ Utils --> APIRoutes
 - [src/lib/auth.ts:12-116](file://src/lib/auth.ts#L12-L116)
 - [src/app/api/auth/[...nextauth]/route.ts:1-7](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
 - [src/lib/utils.ts:1-137](file://src/lib/utils.ts#L1-L137)
+- [src/lib/schools.ts:1-31](file://src/lib/schools.ts#L1-L31)
 
 **Section sources**
 - [src/types/index.ts:9-18](file://src/types/index.ts#L9-L18)
 - [src/lib/auth.ts:12-116](file://src/lib/auth.ts#L12-L116)
 - [src/lib/utils.ts:1-137](file://src/lib/utils.ts#L1-L137)
+- [src/lib/schools.ts:1-31](file://src/lib/schools.ts#L1-L31)
 
 ## Performance Considerations
 - Prefer selective field retrieval (select) in Prisma queries to minimize payload sizes
 - Use pagination (page, pageSize) in property listings to limit response size
 - Avoid unnecessary includes in queries; include only relations needed for the current view
 - Cache frequently accessed enums and labels in memory (already provided via constants)
+- Implement proper indexing on frequently queried fields (landlordId, locationId, status, price)
 
 ## Troubleshooting Guide
 - Authentication failures
@@ -510,9 +531,13 @@ Utils --> APIRoutes
 - Booking errors
   - Verify student-only access and property approval status
   - Prevent duplicate active bookings per student/property pair
+  - Validate booking status updates according to role permissions
 - Enum mismatches
   - Use re-exported enums consistently across routes and types
   - Validate status values against PropertyStatus and BookingStatus
+- School location search
+  - Ensure SCHOOL_LOCATION_KEYWORDS mapping includes all supported schools
+  - Verify location filtering logic handles edge cases properly
 
 **Section sources**
 - [src/lib/auth.ts:55-72](file://src/lib/auth.ts#L55-L72)
@@ -520,6 +545,7 @@ Utils --> APIRoutes
 - [src/app/api/properties/route.ts:90-93](file://src/app/api/properties/route.ts#L90-L93)
 - [src/app/api/bookings/route.ts:55-87](file://src/app/api/bookings/route.ts#L55-L87)
 - [src/types/index.ts:20-21](file://src/types/index.ts#L20-L21)
+- [src/lib/schools.ts:19-30](file://src/lib/schools.ts#L19-L30)
 
 ## Conclusion
 The type system in RentalHub-BOUESTI provides strong guarantees across the stack:
@@ -528,6 +554,8 @@ The type system in RentalHub-BOUESTI provides strong guarantees across the stack
 - NextAuth module augmentation ensures secure, typed session usage
 - Utilities enforce safe parsing and formatting
 - API routes consistently validate inputs and return standardized responses
+- Enhanced property search capabilities with school location integration
+- Comprehensive booking management with role-based access control
 
 This foundation enables maintainable, extensible development while preserving type safety and predictable behavior.
 
@@ -538,6 +566,8 @@ This foundation enables maintainable, extensible development while preserving ty
 - Validate request bodies with dedicated interfaces (RegisterBody, PropertyFormData, BookingFormData)
 - Leverage Prisma enums for strict status and role validation
 - Apply defensive parsing with parseAmenities and parseImages for JSON arrays
+- Implement role-based access control using SessionUser type
+- Use PropertySearchParams for consistent property filtering across the application
 
 **Section sources**
 - [src/types/index.ts:44-58](file://src/types/index.ts#L44-L58)
@@ -550,8 +580,42 @@ This foundation enables maintainable, extensible development while preserving ty
 - Re-export Prisma enums from @prisma/client for consistent typing
 - Use Omit to derive SafeUser and relation-enhanced types
 - Select only required fields to align with shared interfaces
+- Leverage Prisma Client for type-safe database operations
 
 **Section sources**
 - [src/types/index.ts:9-18](file://src/types/index.ts#L9-L18)
 - [src/types/index.ts:23-42](file://src/types/index.ts#L23-L42)
 - [src/lib/prisma.ts:13-24](file://src/lib/prisma.ts#L13-L24)
+
+### Enhanced Property Search and Filtering
+- PropertySearchParams interface supports comprehensive filtering options
+- School location keyword mapping enables intelligent property discovery
+- Dynamic status filtering based on user roles (landlord mine view, admin visibility)
+- Flexible pagination with configurable page size limits
+
+**Section sources**
+- [src/types/index.ts:60-71](file://src/types/index.ts#L60-L71)
+- [src/app/api/properties/route.ts:15-93](file://src/app/api/properties/route.ts#L15-L93)
+- [src/lib/schools.ts:19-30](file://src/lib/schools.ts#L19-L30)
+
+### Booking Management System
+- Comprehensive booking lifecycle management (PENDING, CONFIRMED, CANCELLED)
+- Role-based booking permissions and restrictions
+- Duplicate booking prevention logic
+- Flexible booking status updates with validation
+
+**Section sources**
+- [src/app/api/bookings/route.ts:11-182](file://src/app/api/bookings/route.ts#L11-L182)
+- [src/types/index.ts:35-42](file://src/types/index.ts#L35-L42)
+
+### Authentication and Authorization
+- NextAuth module augmentation for extended user/session types
+- Role-based access control throughout API endpoints
+- Secure password handling with bcrypt
+- Session-based authorization with proper error handling
+
+**Section sources**
+- [src/lib/auth.ts:9-34](file://src/lib/auth.ts#L9-L34)
+- [src/app/api/auth/[...nextauth]/route.ts:1-7](file://src/app/api/auth/[...nextauth]/route.ts#L1-L7)
+- [src/app/api/properties/route.ts:105-107](file://src/app/api/properties/route.ts#L105-L107)
+- [src/app/api/bookings/route.ts:55-57](file://src/app/api/bookings/route.ts#L55-L57)
