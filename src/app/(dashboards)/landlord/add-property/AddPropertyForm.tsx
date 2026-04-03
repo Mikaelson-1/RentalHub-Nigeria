@@ -182,13 +182,32 @@ export default function AddPropertyForm() {
     loadLocations();
   }, []);
 
-  const fileToDataUrl = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
-      reader.readAsDataURL(file);
+  const uploadFile = async (
+    file: File,
+    category: "image" | "video" | "verificationDocument",
+  ) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("category", category);
+
+    const response = await fetch("/api/uploads", {
+      method: "POST",
+      body: formData,
     });
+
+    const payload = await response.json();
+    if (!response.ok || !payload?.success || !payload?.data) {
+      throw new Error(payload?.error || `Failed to upload ${file.name}`);
+    }
+
+    return payload.data as {
+      name: string;
+      type: string;
+      mimeType: string;
+      size: number;
+      url: string;
+    };
+  };
 
   const toggleAmenity = (category: keyof typeof amenityCategories, option: string) => {
     const current = watchAmenities?.[category] || [];
@@ -216,7 +235,7 @@ export default function AddPropertyForm() {
         break;
     }
     
-    const result = await trigger(fieldsToValidate as any);
+    const result = await trigger(fieldsToValidate as Array<keyof PropertyFormInput>);
     return result;
   };
 
@@ -298,32 +317,12 @@ export default function AddPropertyForm() {
     setIsSubmitting(true);
 
     try {
-      const photoUrls = await Promise.all(selectedPhotos.map((file) => fileToDataUrl(file)));
-      const imagePayload = selectedPhotos.map((file, index) => ({
-        type: "image",
-        name: file.name,
-        size: file.size,
-        mimeType: file.type,
-        url: photoUrls[index],
-      }));
-      const videoPayload = selectedVideo
-        ? {
-            type: "video",
-            name: selectedVideo.name,
-            size: selectedVideo.size,
-            mimeType: selectedVideo.type,
-          }
-        : null;
+      const imagePayload = await Promise.all(
+        selectedPhotos.map((file) => uploadFile(file, "image")),
+      );
+      const videoPayload = selectedVideo ? await uploadFile(selectedVideo, "video") : null;
       const verificationDocPayload = selectedVerificationDoc
-        ? {
-            type: "verificationDocument",
-            name: selectedVerificationDoc.name,
-            size: selectedVerificationDoc.size,
-            mimeType: selectedVerificationDoc.type,
-            ...(selectedVerificationDoc.size <= 2 * 1024 * 1024
-              ? { url: await fileToDataUrl(selectedVerificationDoc) }
-              : {}),
-          }
+        ? await uploadFile(selectedVerificationDoc, "verificationDocument")
         : null;
 
       const amenities = [

@@ -2,26 +2,12 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { Search, MessageSquare, Bell, HelpCircle, Plus } from "lucide-react";
 
 export default function Navbar() {
   const { data: session, status } = useSession();
   const isAuthenticated = status === "authenticated";
-
-  const getDashboardLink = () => {
-    if (!session?.user?.role) return "/";
-    switch (session.user.role) {
-      case "LANDLORD":
-        return "/landlord";
-      case "STUDENT":
-        return "/student";
-      case "ADMIN":
-        return "/admin";
-      default:
-        return "/";
-    }
-  };
 
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">

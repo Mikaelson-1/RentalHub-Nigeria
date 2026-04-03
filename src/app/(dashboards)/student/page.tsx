@@ -50,6 +50,7 @@ export default function StudentDashboard() {
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [bookingPropertyId, setBookingPropertyId] = useState("");
+  const [updatingBookingId, setUpdatingBookingId] = useState("");
   const [error, setError] = useState("");
 
   const loadStudentData = useCallback(async () => {
@@ -117,6 +118,27 @@ export default function StudentDashboard() {
         booking.property.id === propertyId &&
         (booking.status === "PENDING" || booking.status === "CONFIRMED"),
     );
+
+  const cancelBooking = async (bookingId: string) => {
+    setUpdatingBookingId(bookingId);
+    setError("");
+    try {
+      const response = await fetch("/api/bookings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId, status: "CANCELLED" }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Failed to cancel booking.");
+      }
+      await loadStudentData();
+    } catch (cancelError) {
+      setError(cancelError instanceof Error ? cancelError.message : "Failed to cancel booking.");
+    } finally {
+      setUpdatingBookingId("");
+    }
+  };
 
   const formatPrice = (price: number | string) =>
     new Intl.NumberFormat("en-NG", {
@@ -263,6 +285,15 @@ export default function StudentDashboard() {
                     >
                       {booking.status}
                     </span>
+                    {(booking.status === "PENDING" || booking.status === "CONFIRMED") && (
+                      <button
+                        onClick={() => cancelBooking(booking.id)}
+                        disabled={updatingBookingId === booking.id}
+                        className="block mt-2 text-xs text-red-600 hover:text-red-700 disabled:opacity-50"
+                      >
+                        {updatingBookingId === booking.id ? "Cancelling..." : "Cancel"}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

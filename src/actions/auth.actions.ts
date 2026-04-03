@@ -1,7 +1,6 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { signIn } from "next-auth/react";
 import { prisma } from "@/lib/prisma";
 import { Role, VerificationStatus } from "@prisma/client";
 

@@ -25,12 +25,11 @@ export default function Footer() {
               <Link href="/" className="hover:text-gray-700 transition-colors">Home</Link>
               <Link href="/properties" className="hover:text-gray-700 transition-colors">Properties</Link>
               <Link href="/#how-it-works" className="hover:text-gray-700 transition-colors">How it Works</Link>
-              <Link href="/#faq" className="hover:text-gray-700 transition-colors">FAQ</Link>
             </div>
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold uppercase tracking-wide text-black">Legal</h4>
+            <h4 className="text-sm font-semibold uppercase tracking-wide text-[#E67E22]">Legal</h4>
             <div className="mt-3 flex flex-col gap-2 text-sm text-black">
               <Link href="/terms" className="hover:text-gray-700 transition-colors">Terms of Service</Link>
               <Link href="/privacy" className="hover:text-gray-700 transition-colors">Privacy Policy</Link>

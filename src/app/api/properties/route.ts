@@ -8,21 +8,7 @@ import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import type { PropertyStatus } from '@prisma/client';
-import { sanitizeText, sanitizeStringArray } from '@/lib/sanitize';
-import { logger } from '@/lib/logger';
-
-const SCHOOL_LOCATION_KEYWORDS: Record<string, string[]> = {
-  'BOUESTI - Ikere-Ekiti': ['Ikere', 'Uro', 'Odo Oja', 'Afao', 'Olumilua', 'Ajebandele', 'Ikoyi Estate', 'Amoye', "Oke 'Kere"],
-  'University of Lagos (UNILAG)': ['Akoka', 'Yaba', 'Bariga', 'Surulere'],
-  'Obafemi Awolowo University (OAU)': ['Ile-Ife', 'Modakeke'],
-  'University of Ibadan (UI)': ['Ibadan', 'Bodija', 'Agbowo', 'Sango'],
-  'University of Benin (UNIBEN)': ['Benin', 'Ugbowo', 'Ekosodin'],
-  'Federal University of Technology Akure (FUTA)': ['Akure', 'Oba-Ile', 'Aule'],
-  'University of Ilorin (UNILORIN)': ['Ilorin', 'Tanke', 'Oke-Odo'],
-  'Ahmadu Bello University (ABU)': ['Zaria', 'Samaru', 'Kongo'],
-  'University of Nigeria Nsukka (UNN)': ['Nsukka', 'Odenigwe'],
-  'Covenant University': ['Ota', 'Canaanland', 'Iyana-Iyesi'],
-};
+import { SCHOOL_LOCATION_KEYWORDS } from '@/lib/schools';
 
 // ── GET — Browse approved properties ─────────────────────
 
@@ -79,6 +65,7 @@ export async function GET(request: Request) {
         where,
         include: {
           landlord: { select: { id: true, name: true, email: true, verificationStatus: true } },
+          reviewedBy: { select: { id: true, name: true, email: true } },
           location: true,
           _count:   { select: { bookings: true } },
         },
@@ -100,7 +87,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    logger.error('[PROPERTIES GET ERROR]', { error: String(error) });
+    console.error('[PROPERTIES GET ERROR]', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch properties.' }, { status: 500 });
   }
 }
@@ -119,19 +106,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Only landlords can list properties.' }, { status: 403 });
     }
 
-    if (session.user.role === 'LANDLORD' && session.user.verificationStatus === 'SUSPENDED') {
-      return NextResponse.json(
-        { success: false, error: 'Your account has been suspended. You cannot create new listings.' },
-        { status: 403 },
-      );
-    }
-
     const body = await request.json();
     const { title, description, price, locationId, distanceToCampus, amenities = [], images = [] } = body;
 
     if (!title?.trim() || !description?.trim() || !price || !locationId) {
       return NextResponse.json(
         { success: false, error: 'Title, description, price, and location are required.' },
+        { status: 400 },
+      );
+    }
+
+    if (!Array.isArray(images) || images.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'At least one uploaded property image is required.' },
+        { status: 400 },
+      );
+    }
+
+    if (!Array.isArray(amenities)) {
+      return NextResponse.json(
+        { success: false, error: 'Amenities must be provided as an array.' },
         { status: 400 },
       );
     }
@@ -143,13 +137,13 @@ export async function POST(request: Request) {
 
     const property = await prisma.property.create({
       data: {
-        title:            sanitizeText(title, 200),
-        description:      sanitizeText(description, 5000),
+        title:            title.trim(),
+        description:      description.trim(),
         price,
         locationId,
         landlordId:       session.user.id,
         distanceToCampus: distanceToCampus ? Number(distanceToCampus) : null,
-        amenities:        sanitizeStringArray(amenities),
+        amenities,
         images,
         status:           'PENDING',
       },
@@ -161,7 +155,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    logger.error('[PROPERTIES POST ERROR]', { error: String(error) });
+    console.error('[PROPERTIES POST ERROR]', error);
     return NextResponse.json({ success: false, error: 'Failed to create property.' }, { status: 500 });
   }
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import prisma from "@/lib/prisma";
+import { SCHOOL_LOCATION_KEYWORDS } from "@/lib/schools";
 
 export const dynamic = "force-dynamic";
 
@@ -9,29 +10,6 @@ interface PropertiesPageProps {
     school?: string;
   }>;
 }
-
-const SCHOOL_LOCATION_KEYWORDS: Record<string, string[]> = {
-  "BOUESTI - Ikere-Ekiti": [
-    "Ikere",
-    "Uro",
-    "Odo Oja",
-    "Afao",
-    "Olumilua",
-    "Ajebandele",
-    "Ikoyi Estate",
-    "Amoye",
-    "Oke 'Kere",
-  ],
-  "University of Lagos (UNILAG)": ["Akoka", "Yaba", "Bariga", "Surulere"],
-  "Obafemi Awolowo University (OAU)": ["Ile-Ife", "Modakeke"],
-  "University of Ibadan (UI)": ["Ibadan", "Bodija", "Agbowo", "Sango"],
-  "University of Benin (UNIBEN)": ["Benin", "Ugbowo", "Ekosodin"],
-  "Federal University of Technology Akure (FUTA)": ["Akure", "Oba-Ile", "Aule"],
-  "University of Ilorin (UNILORIN)": ["Ilorin", "Tanke", "Oke-Odo"],
-  "Ahmadu Bello University (ABU)": ["Zaria", "Samaru", "Kongo"],
-  "University of Nigeria Nsukka (UNN)": ["Nsukka", "Odenigwe"],
-  "Covenant University": ["Ota", "Canaanland", "Iyana-Iyesi"],
-};
 
 export default async function PropertiesPage({ searchParams }: PropertiesPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;

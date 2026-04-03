@@ -8,6 +8,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
+import { sendPropertyApprovedToLandlord, sendPropertyRejectedToLandlord } from '@/lib/email';
 import type { PropertyStatus } from '@prisma/client';
 
 interface RouteContext {
@@ -28,15 +29,15 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     }
 
     const body = await request.json();
-    const { status, rejectionReason }: { status: PropertyStatus; rejectionReason?: string } = body;
+    const { status, reason }: { status: PropertyStatus; reason?: string } = body;
 
     if (!['APPROVED', 'REJECTED', 'PENDING'].includes(status)) {
       return NextResponse.json({ success: false, error: 'Invalid status value.' }, { status: 400 });
     }
 
-    if (status === 'REJECTED' && !rejectionReason?.trim()) {
+    if (status === "REJECTED" && !reason?.trim()) {
       return NextResponse.json(
-        { success: false, error: 'A rejection reason is required when rejecting a listing.' },
+        { success: false, error: "Rejection reason is required when rejecting a listing." },
         { status: 400 },
       );
     }
@@ -45,10 +46,33 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       where: { id },
       data:  {
         status,
-        rejectionReason: status === 'REJECTED' ? rejectionReason!.trim() : null,
+        reviewedById: session.user.id,
+        reviewedAt: new Date(),
+        reviewNote: reason?.trim() || null,
       },
-      include: { landlord: { select: { name: true, email: true } }, location: true },
+      include: {
+        landlord: { select: { name: true, email: true } },
+        reviewedBy: { select: { name: true, email: true } },
+        location: true,
+      },
     });
+
+    // Notify the landlord of the review outcome (fire-and-forget)
+    if (status === 'APPROVED') {
+      sendPropertyApprovedToLandlord({
+        landlordEmail: property.landlord.email,
+        landlordName:  property.landlord.name,
+        propertyTitle: property.title,
+        propertyId:    property.id,
+      }).catch((err) => console.error('[email] property approved notification failed:', err));
+    } else if (status === 'REJECTED') {
+      sendPropertyRejectedToLandlord({
+        landlordEmail: property.landlord.email,
+        landlordName:  property.landlord.name,
+        propertyTitle: property.title,
+        reviewNote:    reason?.trim() ?? '',
+      }).catch((err) => console.error('[email] property rejected notification failed:', err));
+    }
 
     return NextResponse.json({
       success: true,

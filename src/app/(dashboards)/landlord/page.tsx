@@ -2,14 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, X } from "lucide-react";
 
 interface Listing {
   id: string;
   title: string;
   price: number | string;
   status: "PENDING" | "APPROVED" | "REJECTED";
-  rejectionReason?: string | null;
   location: {
     name: string;
   };
@@ -26,6 +24,7 @@ interface BookingRequest {
     name: string;
   };
   property: {
+    id: string;
     title: string;
   };
 }
@@ -40,11 +39,7 @@ interface ListingsResponse {
 
 interface BookingsResponse {
   success: boolean;
-  data?: {
-    items: BookingRequest[];
-    total: number;
-    totalPages: number;
-  };
+  data?: BookingRequest[];
   error?: string;
 }
 
@@ -54,7 +49,7 @@ export default function LandlordDashboard() {
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [updatingBookingId, setUpdatingBookingId] = useState("");
+  const [updatingRequestId, setUpdatingRequestId] = useState("");
 
   const loadDashboardData = useCallback(async () => {
     setIsLoading(true);
@@ -78,7 +73,7 @@ export default function LandlordDashboard() {
       }
 
       setListings(listingsPayload.data?.items ?? []);
-      setRequests(requestsPayload.data?.items ?? []);
+      setRequests(requestsPayload.data ?? []);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load landlord dashboard.");
     } finally {
@@ -100,33 +95,33 @@ export default function LandlordDashboard() {
     [requests],
   );
 
-  const updateBookingStatus = async (bookingId: string, status: "CONFIRMED" | "CANCELLED") => {
-    setUpdatingBookingId(bookingId);
-    setError("");
-    try {
-      const response = await fetch(`/api/bookings/${bookingId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload.success) {
-        throw new Error(payload.error || `Failed to ${status.toLowerCase()} booking.`);
-      }
-      await loadDashboardData();
-    } catch (updateError) {
-      setError(updateError instanceof Error ? updateError.message : "Failed to update booking.");
-    } finally {
-      setUpdatingBookingId("");
-    }
-  };
-
   const formatPrice = (price: number | string) =>
     new Intl.NumberFormat("en-NG", {
       style: "currency",
       currency: "NGN",
       maximumFractionDigits: 0,
     }).format(Number(price));
+
+  const updateRequestStatus = async (bookingId: string, status: "CONFIRMED" | "CANCELLED") => {
+    setUpdatingRequestId(bookingId);
+    setError("");
+    try {
+      const response = await fetch("/api/bookings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId, status }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Failed to update booking request.");
+      }
+      await loadDashboardData();
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : "Failed to update booking request.");
+    } finally {
+      setUpdatingRequestId("");
+    }
+  };
 
   return (
     <div>
@@ -217,6 +212,7 @@ export default function LandlordDashboard() {
                       <th className="text-left py-3 px-4 font-semibold text-gray-700">Price</th>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700">Requests</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -238,13 +234,14 @@ export default function LandlordDashboard() {
                             {listing.status}
                           </span>
                         </td>
-                        <td className="py-4 px-4 text-gray-600">
-                          {listing._count?.bookings ?? 0}
-                          {listing.status === "REJECTED" && listing.rejectionReason && (
-                            <p className="text-xs text-red-600 mt-1">
-                              Reason: {listing.rejectionReason}
-                            </p>
-                          )}
+                        <td className="py-4 px-4 text-gray-600">{listing._count?.bookings ?? 0}</td>
+                        <td className="py-4 px-4">
+                          <Link
+                            href={`/landlord/properties/${listing.id}`}
+                            className="text-sm text-[#192F59] hover:text-[#E67E22] font-medium transition-colors"
+                          >
+                            View details
+                          </Link>
                         </td>
                       </tr>
                     ))}
@@ -268,39 +265,34 @@ export default function LandlordDashboard() {
                       Requested on {new Date(request.createdAt).toLocaleDateString()}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  {request.status === "PENDING" ? (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => updateRequestStatus(request.id, "CONFIRMED")}
+                        disabled={updatingRequestId === request.id}
+                        className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white px-3 py-1 rounded-md text-sm"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => updateRequestStatus(request.id, "CANCELLED")}
+                        disabled={updatingRequestId === request.id}
+                        className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-3 py-1 rounded-md text-sm"
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  ) : (
                     <span
                       className={`px-3 py-1 rounded-full text-sm font-medium ${
                         request.status === "CONFIRMED"
                           ? "bg-green-100 text-green-800"
-                          : request.status === "PENDING"
-                          ? "bg-yellow-100 text-yellow-800"
                           : "bg-red-100 text-red-800"
                       }`}
                     >
                       {request.status}
                     </span>
-                    {request.status === "PENDING" && (
-                      <>
-                        <button
-                          onClick={() => updateBookingStatus(request.id, "CONFIRMED")}
-                          disabled={updatingBookingId === request.id}
-                          title="Confirm booking"
-                          className="p-1.5 rounded-full bg-green-100 hover:bg-green-200 text-green-700 disabled:opacity-50 transition-colors"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => updateBookingStatus(request.id, "CANCELLED")}
-                          disabled={updatingBookingId === request.id}
-                          title="Cancel booking"
-                          className="p-1.5 rounded-full bg-red-100 hover:bg-red-200 text-red-700 disabled:opacity-50 transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </>
-                    )}
-                  </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -10,6 +10,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ── Enums ────────────────────────────────────────────────────
@@ -53,7 +54,7 @@ model User {
 
   // Relations
   properties         Property[]         @relation("LandlordProperties")
-  reviewedProperties Property[]         @relation("properties_reviewedByIdTousers")
+  reviewedProperties Property[]         @relation("PropertyReviews")
   bookings           Booking[]          @relation("StudentBookings")
 
   @@index([email])
@@ -89,29 +90,27 @@ model Property {
   /// JSON array of image URL strings
   images           Json           @default("[]")
   status           PropertyStatus @default(PENDING)
-  /// Optional reason provided by admin when rejecting a listing
-  rejectionReason  String?        @db.Text
-  /// Preserved from earlier schema version — tracks who reviewed and when
   reviewedAt       DateTime?
-  reviewedById     String?
+  reviewNote       String?        @db.Text
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
   // Foreign keys
   landlordId       String
   locationId       String
+  reviewedById     String?
 
   // Relations
   landlord         User           @relation("LandlordProperties", fields: [landlordId], references: [id], onDelete: Cascade)
+  reviewedBy       User?          @relation("PropertyReviews", fields: [reviewedById], references: [id])
   location         Location       @relation(fields: [locationId], references: [id])
-  reviewer         User?          @relation("properties_reviewedByIdTousers", fields: [reviewedById], references: [id])
   bookings         Booking[]
 
   @@index([landlordId])
   @@index([locationId])
   @@index([status])
-  @@index([price])
   @@index([reviewedById])
+  @@index([price])
   @@map("properties")
 }
 
@@ -133,6 +132,5 @@ model Booking {
   @@index([studentId])
   @@index([propertyId])
   @@index([status])
-  @@index([studentId, status])
   @@map("bookings")
 }

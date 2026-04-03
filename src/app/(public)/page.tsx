@@ -1,41 +1,25 @@
 import Link from "next/link";
+import prisma from "@/lib/prisma";
+import { SCHOOL_OPTIONS } from "@/lib/schools";
 
-const featuredListings = [
-  {
-    title: "Modern Self-Contain",
-    location: "Uro",
-    price: "₦160,000/year",
-    distance: "0.7km",
-    amenities: ["Borehole", "Prepaid Meter", "Fenced"],
-  },
-  {
-    title: "Student Apartment (2 Units)",
-    location: "Ikoyi Estate",
-    price: "₦210,000/year",
-    distance: "0.4km",
-    amenities: ["Wardrobe", "Kitchen Cabinet", "Night Watchman"],
-  },
-  {
-    title: "Budget Single Room",
-    location: "Afao",
-    price: "₦95,000/year",
-    distance: "1.4km",
-    amenities: ["Well Water", "Shared Meter", "Tiled Floors"],
-  },
-];
+// Fetch up to 3 approved properties from the database for the featured section.
+// This page is statically generated but revalidated whenever a property is approved.
+export const revalidate = 60; // revalidate at most every 60 seconds
 
-const schools = [
-  { value: "BOUESTI - Ikere-Ekiti", label: "BOUESTI - Ikere-Ekiti" },
-  { value: "University of Lagos (UNILAG)", label: "University of Lagos (UNILAG)" },
-  { value: "Obafemi Awolowo University (OAU)", label: "Obafemi Awolowo University (OAU)" },
-  { value: "University of Ibadan (UI)", label: "University of Ibadan (UI)" },
-  { value: "University of Benin (UNIBEN)", label: "University of Benin (UNIBEN)" },
-  { value: "Federal University of Technology Akure (FUTA)", label: "Federal University of Technology Akure (FUTA)" },
-  { value: "University of Ilorin (UNILORIN)", label: "University of Ilorin (UNILORIN)" },
-  { value: "Ahmadu Bello University (ABU)", label: "Ahmadu Bello University (ABU)" },
-  { value: "University of Nigeria Nsukka (UNN)", label: "University of Nigeria Nsukka (UNN)" },
-  { value: "Covenant University", label: "Covenant University" },
-];
+async function getFeaturedProperties() {
+  try {
+    return await prisma.property.findMany({
+      where: { status: "APPROVED" },
+      include: {
+        location: { select: { name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 3,
+    });
+  } catch {
+    return [];
+  }
+}
 
 const faqs = [
   {
@@ -60,7 +44,9 @@ const faqs = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const featuredProperties = await getFeaturedProperties();
+
   return (
     <div className="min-h-screen bg-[#fafafa] overflow-x-hidden">
       <section className="relative bg-gradient-to-b from-white to-gray-50 py-16 lg:py-24">
@@ -87,7 +73,7 @@ export default function HomePage() {
                     defaultValue=""
                   >
                     <option value="">Select school...</option>
-                    {schools.map((school) => (
+                    {SCHOOL_OPTIONS.map((school) => (
                       <option key={school.value} value={school.value}>
                         {school.label}
                       </option>
@@ -171,35 +157,73 @@ export default function HomePage() {
 
       <section id="featured" className="bg-gray-50 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-10">
-            <p className="text-xs font-semibold tracking-widest text-[#E67E22] uppercase">Approved Listings</p>
-            <h2 className="text-3xl font-serif text-[#192F59] mt-2">Featured Properties</h2>
+          <div className="mb-10 flex items-end justify-between">
+            <div>
+              <p className="text-xs font-semibold tracking-widest text-[#E67E22] uppercase">Approved Listings</p>
+              <h2 className="text-3xl font-serif text-[#192F59] mt-2">Featured Properties</h2>
+            </div>
+            <Link
+              href="/properties"
+              className="text-sm font-semibold text-[#192F59] hover:text-[#E67E22] transition-colors hidden sm:block"
+            >
+              View all →
+            </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {featuredListings.map((listing) => (
-              <div key={listing.title} className="bg-white border border-gray-200 rounded-2xl p-6">
-                <p className="text-sm text-gray-500">{listing.location}</p>
-                <h3 className="text-xl font-semibold text-[#192F59] mt-1">{listing.title}</h3>
-                <p className="text-[#00A553] font-bold text-lg mt-3">{listing.price}</p>
-                <p className="text-sm text-gray-500 mt-1">{listing.distance} to campus</p>
+          {featuredProperties.length === 0 ? (
+            <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
+              <p className="text-gray-500 text-sm">No approved listings yet. Check back soon!</p>
+              <Link href="/register?role=LANDLORD" className="inline-block mt-4 text-sm font-semibold text-[#E67E22] hover:underline">
+                Are you a landlord? List your property →
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {featuredProperties.map((property) => {
+                const amenities = Array.isArray(property.amenities)
+                  ? (property.amenities as string[]).slice(0, 3)
+                  : [];
+                const price = new Intl.NumberFormat("en-NG", {
+                  style: "currency",
+                  currency: "NGN",
+                  maximumFractionDigits: 0,
+                }).format(Number(property.price));
 
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {listing.amenities.map((amenity) => (
-                    <span key={amenity} className="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full">
-                      {amenity}
-                    </span>
-                  ))}
-                </div>
+                return (
+                  <div key={property.id} className="bg-white border border-gray-200 rounded-2xl p-6">
+                    <p className="text-sm text-gray-500">{property.location.name}</p>
+                    <h3 className="text-xl font-semibold text-[#192F59] mt-1 line-clamp-1">{property.title}</h3>
+                    <p className="text-[#00A553] font-bold text-lg mt-3">{price}</p>
+                    {property.distanceToCampus && (
+                      <p className="text-sm text-gray-500 mt-1">{Number(property.distanceToCampus)} km to campus</p>
+                    )}
 
-                <Link
-                  href="/properties"
-                  className="inline-block mt-5 text-sm font-semibold text-[#192F59] hover:text-[#E67E22] transition-colors"
-                >
-                  View Details
-                </Link>
-              </div>
-            ))}
+                    {amenities.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        {amenities.map((amenity) => (
+                          <span key={amenity} className="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full">
+                            {amenity}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <Link
+                      href={`/properties/${property.id}`}
+                      className="inline-block mt-5 text-sm font-semibold text-[#192F59] hover:text-[#E67E22] transition-colors"
+                    >
+                      View Details →
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="mt-6 text-center sm:hidden">
+            <Link href="/properties" className="text-sm font-semibold text-[#192F59] hover:text-[#E67E22] transition-colors">
+              View all properties →
+            </Link>
           </div>
         </div>
       </section>
