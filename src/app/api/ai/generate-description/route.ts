@@ -47,9 +47,15 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, data: { description } });
   } catch (error) {
-    console.error("[AI GENERATE DESCRIPTION ERROR]", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[AI GENERATE DESCRIPTION ERROR]", msg);
     return NextResponse.json(
-      { success: false, error: "Failed to generate description." },
+      {
+        success: false,
+        error: !process.env.GOOGLE_AI_API_KEY
+          ? "AI service is not configured. Add GOOGLE_AI_API_KEY to your environment variables."
+          : "Failed to generate description. Please try again.",
+      },
       { status: 500 },
     );
   }

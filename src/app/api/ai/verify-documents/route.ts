@@ -78,9 +78,15 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, data: { score: parsed.score, note: parsed.note } });
   } catch (error) {
-    console.error("[AI VERIFY DOCUMENTS ERROR]", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[AI VERIFY DOCUMENTS ERROR]", msg);
     return NextResponse.json(
-      { success: false, error: "Failed to pre-screen verification." },
+      {
+        success: false,
+        error: !process.env.GOOGLE_AI_API_KEY
+          ? "AI service is not configured. Add GOOGLE_AI_API_KEY to your environment variables."
+          : "Failed to pre-screen verification.",
+      },
       { status: 500 },
     );
   }

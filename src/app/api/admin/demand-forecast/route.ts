@@ -128,9 +128,15 @@ Monthly breakdown: ${monthlyBookings.map((m) => `${m.month}: ${m.count}`).join("
       data: { monthlyBookings, bookingStatusBreakdown, totalApproved, totalPending, forecast },
     });
   } catch (error) {
-    console.error("[DEMAND FORECAST ERROR]", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[DEMAND FORECAST ERROR]", msg);
     return NextResponse.json(
-      { success: false, error: "Failed to generate demand forecast." },
+      {
+        success: false,
+        error: !process.env.GOOGLE_AI_API_KEY
+          ? "AI service is not configured. Add GOOGLE_AI_API_KEY to your environment variables."
+          : "Failed to generate demand forecast.",
+      },
       { status: 500 },
     );
   }
