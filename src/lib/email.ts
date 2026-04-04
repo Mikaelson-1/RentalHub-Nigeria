@@ -335,3 +335,165 @@ export async function sendPropertyRejectedToLandlord(options: {
     `),
   });
 }
+
+// ── Verification Notifications ───────────────────────────────────────────────
+
+/** Sent to admin when a landlord submits verification documents */
+export async function sendVerificationSubmittedToAdmin(options: {
+  adminEmail: string;
+  landlordName: string;
+  landlordEmail: string;
+  submittedAt: string;
+}) {
+  const { adminEmail, landlordName, landlordEmail, submittedAt } = options;
+  const adminUrl = `${APP_URL}/admin`;
+
+  await sendMail({
+    to: adminEmail,
+    subject: `Verification documents submitted — ${landlordName}`,
+    html: wrap("New Verification Submission", `
+      <p>Hi Admin,</p>
+      <p>A landlord has submitted their verification documents and is awaiting review.</p>
+      <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px;">
+        <tr><td style="padding:8px 0;color:#6b7280;width:140px;">Name</td><td style="padding:8px 0;font-weight:600;color:#192F59;">${landlordName}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Email</td><td style="padding:8px 0;">${landlordEmail}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Submitted</td><td style="padding:8px 0;">${submittedAt}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Status</td><td style="padding:8px 0;"><span style="background:#dbeafe;color:#1e40af;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">UNDER REVIEW</span></td></tr>
+      </table>
+      <p style="margin:28px 0;">
+        <a href="${adminUrl}" style="background:#192F59;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;">
+          Review in Admin Dashboard
+        </a>
+      </p>
+    `),
+  });
+}
+
+/** Sent to landlord when admin rejects their verification */
+export async function sendVerificationRejectedToLandlord(options: {
+  landlordEmail: string;
+  landlordName: string;
+  rejectionNote: string;
+}) {
+  const { landlordEmail, landlordName, rejectionNote } = options;
+  const verificationUrl = `${APP_URL}/landlord/verification`;
+
+  await sendMail({
+    to: landlordEmail,
+    subject: "Your verification was not approved — action required",
+    html: wrap("Verification Not Approved", `
+      <p>Hi <strong>${landlordName}</strong>,</p>
+      <p>Unfortunately, your identity and property verification could not be approved at this time.</p>
+      <div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:16px;border-radius:4px;margin:20px 0;">
+        <p style="margin:0;font-size:14px;color:#92400e;"><strong>Reason:</strong><br/>${rejectionNote}</p>
+      </div>
+      <p>Please address the feedback above and resubmit your documents.</p>
+      <p style="margin:28px 0;">
+        <a href="${verificationUrl}" style="background:#E67E22;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;">
+          Resubmit Documents
+        </a>
+      </p>
+      <p style="color:#6b7280;font-size:13px;">If you have questions, contact us at <a href="mailto:support@rentalhub.ng" style="color:#E67E22;">support@rentalhub.ng</a>.</p>
+    `),
+  });
+}
+
+/** Sent to student when payment is confirmed */
+export async function sendPaymentConfirmedToStudent(options: {
+  studentEmail: string;
+  studentName: string;
+  propertyTitle: string;
+  propertyLocation: string;
+  landlordName: string;
+  landlordPhone: string;
+  amount: string;
+  paystackRef: string;
+  moveInDate?: string;
+  bookingId: string;
+}) {
+  const { studentEmail, studentName, propertyTitle, propertyLocation, landlordName, landlordPhone, amount, paystackRef, moveInDate, bookingId } = options;
+  const receiptUrl = `${APP_URL}/student/bookings/${bookingId}/receipt`;
+
+  await sendMail({
+    to: studentEmail,
+    subject: `Payment confirmed — ${propertyTitle}`,
+    html: wrap("Payment Confirmed", `
+      <p>Hi <strong>${studentName}</strong>,</p>
+      <p>Your payment has been received and your accommodation is now <strong style="color:#16a34a;">secured</strong>!</p>
+      <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px;">
+        <tr><td style="padding:8px 0;color:#6b7280;width:160px;">Property</td><td style="padding:8px 0;font-weight:600;color:#192F59;">${propertyTitle}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Location</td><td style="padding:8px 0;">${propertyLocation}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Amount Paid</td><td style="padding:8px 0;font-weight:600;">&#8358;${amount}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Reference</td><td style="padding:8px 0;font-family:monospace;font-size:13px;">${paystackRef}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Landlord</td><td style="padding:8px 0;">${landlordName}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Landlord Phone</td><td style="padding:8px 0;">${landlordPhone || 'Contact via dashboard'}</td></tr>
+        ${moveInDate ? `<tr><td style="padding:8px 0;color:#6b7280;">Move-in Date</td><td style="padding:8px 0;font-weight:600;">${moveInDate}</td></tr>` : ''}
+      </table>
+      <p style="margin:28px 0;">
+        <a href="${receiptUrl}" style="background:#E67E22;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;">
+          View Receipt
+        </a>
+      </p>
+      <p style="color:#6b7280;font-size:13px;">Keep this email as proof of payment. Contact the landlord directly to arrange move-in.</p>
+    `),
+  });
+}
+
+/** Sent to landlord when a student's payment is confirmed */
+export async function sendPaymentReceivedToLandlord(options: {
+  landlordEmail: string;
+  landlordName: string;
+  studentName: string;
+  propertyTitle: string;
+  amount: string;
+  paystackRef: string;
+}) {
+  const { landlordEmail, landlordName, studentName, propertyTitle, amount, paystackRef } = options;
+  const dashboardUrl = `${APP_URL}/landlord`;
+
+  await sendMail({
+    to: landlordEmail,
+    subject: `Payment received — ${propertyTitle}`,
+    html: wrap("Payment Received", `
+      <p>Hi <strong>${landlordName}</strong>,</p>
+      <p>A student has completed payment for your property. The booking is now fully confirmed.</p>
+      <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px;">
+        <tr><td style="padding:8px 0;color:#6b7280;width:160px;">Property</td><td style="padding:8px 0;font-weight:600;color:#192F59;">${propertyTitle}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Student</td><td style="padding:8px 0;">${studentName}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Amount</td><td style="padding:8px 0;font-weight:600;">&#8358;${amount}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Reference</td><td style="padding:8px 0;font-family:monospace;font-size:13px;">${paystackRef}</td></tr>
+      </table>
+      <p style="margin:28px 0;">
+        <a href="${dashboardUrl}" style="background:#192F59;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;">
+          View Dashboard
+        </a>
+      </p>
+      <p style="color:#6b7280;font-size:13px;">Please reach out to the student to coordinate move-in details.</p>
+    `),
+  });
+}
+
+/** Sent to student when booking expires (unpaid after 48h) */
+export async function sendBookingExpiredToStudent(options: {
+  studentEmail: string;
+  studentName: string;
+  propertyTitle: string;
+}) {
+  const { studentEmail, studentName, propertyTitle } = options;
+  const browseUrl = `${APP_URL}/properties`;
+
+  await sendMail({
+    to: studentEmail,
+    subject: `Booking expired — ${propertyTitle}`,
+    html: wrap("Booking Expired", `
+      <p>Hi <strong>${studentName}</strong>,</p>
+      <p>Your booking for <strong>${propertyTitle}</strong> has expired because payment was not completed within 48 hours.</p>
+      <p>The property may still be available. Browse and book again to secure your accommodation.</p>
+      <p style="margin:28px 0;">
+        <a href="${browseUrl}" style="background:#E67E22;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;">
+          Browse Properties
+        </a>
+      </p>
+    `),
+  });
+}

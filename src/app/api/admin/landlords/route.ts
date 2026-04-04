@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { sendVerificationRejectedToLandlord } from "@/lib/email";
 
 export async function GET() {
   try {
@@ -18,7 +19,7 @@ export async function GET() {
     const landlords = await prisma.user.findMany({
       where: {
         role: "LANDLORD",
-        verificationStatus: { in: ["UNVERIFIED", "UNDER_REVIEW", "REJECTED"] },
+        verificationStatus: { in: ["UNVERIFIED", "UNDER_REVIEW", "REJECTED", "SUSPENDED"] },
       },
       select: {
         id:                      true,
@@ -60,9 +61,9 @@ export async function PATCH(request: Request) {
     const action: string = body.action;
     const note: string | undefined = body.note;
 
-    if (!landlordId || !["APPROVE", "REJECT"].includes(action)) {
+    if (!landlordId || !["APPROVE", "REJECT", "SUSPEND", "UNSUSPEND"].includes(action)) {
       return NextResponse.json(
-        { success: false, error: "landlordId (or userId) and action (APPROVE | REJECT) are required." },
+        { success: false, error: "landlordId (or userId) and action (APPROVE | REJECT | SUSPEND | UNSUSPEND) are required." },
         { status: 400 },
       );
     }
@@ -74,20 +75,38 @@ export async function PATCH(request: Request) {
       );
     }
 
+    const statusMap: Record<string, string> = {
+      APPROVE: "VERIFIED",
+      REJECT: "REJECTED",
+      SUSPEND: "SUSPENDED",
+      UNSUSPEND: "VERIFIED",
+    };
+
     const updated = await prisma.user.update({
       where: { id: landlordId },
       data:  {
-        verificationStatus: action === "APPROVE" ? "VERIFIED" : "REJECTED",
+        verificationStatus: statusMap[action] as "VERIFIED" | "REJECTED" | "SUSPENDED",
         verificationNote:   action === "REJECT" ? (note ?? "").trim() : null,
       },
       select: { id: true, name: true, email: true, verificationStatus: true },
     });
 
+    // Send rejection email (fire-and-forget)
+    if (action === "REJECT" && note?.trim()) {
+      sendVerificationRejectedToLandlord({
+        landlordEmail: updated.email,
+        landlordName: updated.name,
+        rejectionNote: note.trim(),
+      }).catch((err) => console.error("[email] verification rejected landlord notification failed:", err));
+    }
+
     return NextResponse.json({
       success: true,
       data:    updated,
-      message: action === "APPROVE"
+      message: action === "APPROVE" || action === "UNSUSPEND"
         ? `${updated.name} has been verified.`
+        : action === "SUSPEND"
+        ? `${updated.name} has been suspended.`
         : `${updated.name}'s verification was rejected.`,
     });
   } catch (error) {

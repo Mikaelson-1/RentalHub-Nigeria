@@ -532,12 +532,13 @@ export default function AdminDashboard() {
                     <th className="text-left py-3 px-4 font-semibold text-gray-700">Listings</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700">Bookings</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700">Joined</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.length === 0 ? (
                     <tr>
-                      <td className="py-10 px-4 text-center text-gray-500" colSpan={7}>
+                      <td className="py-10 px-4 text-center text-gray-500" colSpan={8}>
                         No users found.
                       </td>
                     </tr>
@@ -551,6 +552,37 @@ export default function AdminDashboard() {
                         <td className="py-4 px-4 text-gray-700">{user._count?.properties ?? 0}</td>
                         <td className="py-4 px-4 text-gray-700">{user._count?.bookings ?? 0}</td>
                         <td className="py-4 px-4 text-gray-700">{new Date(user.createdAt).toLocaleDateString()}</td>
+                        <td className="py-4 px-4">
+                          {user.role === "LANDLORD" && (
+                            user.verificationStatus === "SUSPENDED" ? (
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`Unsuspend ${user.name}?`)) return;
+                                  await fetch("/api/admin/landlords", {
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ userId: user.id, action: "UNSUSPEND" }),
+                                  });
+                                  await loadAdminData(selectedSchool);
+                                }}
+                                className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded-md font-medium"
+                              >Unsuspend</button>
+                            ) : (
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`Suspend ${user.name}?`)) return;
+                                  await fetch("/api/admin/landlords", {
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ userId: user.id, action: "SUSPEND" }),
+                                  });
+                                  await loadAdminData(selectedSchool);
+                                }}
+                                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-md font-medium"
+                              >Suspend</button>
+                            )
+                          )}
+                        </td>
                       </tr>
                     ))
                   )}
@@ -646,31 +678,62 @@ export default function AdminDashboard() {
                           <p className="text-xs text-gray-400 mt-1">Submitted: {new Date(landlord.verificationSubmittedAt).toLocaleDateString()}</p>
                         )}
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={async () => {
-                            await fetch("/api/admin/landlords", {
-                              method: "PATCH",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ userId: landlord.id, action: "APPROVE" }),
-                            });
-                            await loadAdminData(selectedSchool);
-                          }}
-                          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
-                        >Approve</button>
-                        <button
-                          onClick={async () => {
-                            const note = prompt("Rejection reason (required):");
-                            if (!note) return;
-                            await fetch("/api/admin/landlords", {
-                              method: "PATCH",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ userId: landlord.id, action: "REJECT", note }),
-                            });
-                            await loadAdminData(selectedSchool);
-                          }}
-                          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
-                        >Reject</button>
+                      <div className="flex flex-wrap gap-2">
+                        {landlord.verificationStatus !== "SUSPENDED" && (
+                          <button
+                            onClick={async () => {
+                              await fetch("/api/admin/landlords", {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ userId: landlord.id, action: "APPROVE" }),
+                              });
+                              await loadAdminData(selectedSchool);
+                            }}
+                            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                          >Approve</button>
+                        )}
+                        {landlord.verificationStatus !== "SUSPENDED" && (
+                          <button
+                            onClick={async () => {
+                              const note = prompt("Rejection reason (required):");
+                              if (!note) return;
+                              await fetch("/api/admin/landlords", {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ userId: landlord.id, action: "REJECT", note }),
+                              });
+                              await loadAdminData(selectedSchool);
+                            }}
+                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                          >Reject</button>
+                        )}
+                        {landlord.verificationStatus === "SUSPENDED" ? (
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Unsuspend ${landlord.name}?`)) return;
+                              await fetch("/api/admin/landlords", {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ userId: landlord.id, action: "UNSUSPEND" }),
+                              });
+                              await loadAdminData(selectedSchool);
+                            }}
+                            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                          >Unsuspend</button>
+                        ) : (
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Suspend ${landlord.name}? This will prevent them from listing properties.`)) return;
+                              await fetch("/api/admin/landlords", {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ userId: landlord.id, action: "SUSPEND" }),
+                              });
+                              await loadAdminData(selectedSchool);
+                            }}
+                            className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                          >Suspend</button>
+                        )}
                       </div>
                     </div>
                   </div>

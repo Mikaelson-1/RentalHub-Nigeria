@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { sendVerificationSubmittedToAdmin } from "@/lib/email";
 
 export async function GET() {
   try {
@@ -108,6 +109,21 @@ export async function POST(request: Request) {
       },
       select: { verificationStatus: true, verificationSubmittedAt: true },
     });
+
+    // Notify admin about the new verification submission (fire-and-forget)
+    const adminEmail = process.env.ADMIN_EMAIL ?? "admin@bouesti.edu.ng";
+    const landlordUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true, email: true },
+    });
+    if (landlordUser) {
+      sendVerificationSubmittedToAdmin({
+        adminEmail,
+        landlordName: landlordUser.name,
+        landlordEmail: landlordUser.email,
+        submittedAt: new Date().toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" }),
+      }).catch((err) => console.error("[email] verification submitted admin notification failed:", err));
+    }
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,7 @@
 /**
  * GET  /api/bookings   — List user's bookings
  * POST /api/bookings   — Create a booking (students only)
+ * PATCH /api/bookings  — Update booking status
  */
 
 import { NextResponse } from 'next/server';
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
       where: {
         studentId:  session.user.id,
         propertyId,
-        status:     { in: ['PENDING', 'CONFIRMED'] },
+        status:     { in: ['PENDING', 'CONFIRMED', 'AWAITING_PAYMENT'] },
       },
     });
     if (existingBooking) {
@@ -132,54 +133,14 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session?.user) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-    }
+    if (!session?.user) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
 
     const { bookingId, status } = await request.json();
-
-    if (!bookingId || !status) {
-      return NextResponse.json({ success: false, error: "Booking ID and status are required." }, { status: 400 });
-    }
-
-    if (!["CONFIRMED", "CANCELLED"].includes(status)) {
-      return NextResponse.json({ success: false, error: "Invalid booking status update." }, { status: 400 });
-    }
+    if (!bookingId || !status) return NextResponse.json({ success: false, error: "Booking ID and status are required." }, { status: 400 });
+    if (!["CONFIRMED", "CANCELLED"].includes(status)) return NextResponse.json({ success: false, error: "Invalid status." }, { status: 400 });
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: {
-        property: {
-          select: {
-            landlordId: true,
-          },
-        },
-      },
-    });
-
-    if (!booking) {
-      return NextResponse.json({ success: false, error: "Booking not found." }, { status: 404 });
-    }
-
-    if (session.user.role === "STUDENT") {
-      if (booking.studentId !== session.user.id) {
-        return NextResponse.json({ success: false, error: "You can only update your own bookings." }, { status: 403 });
-      }
-      if (status !== "CANCELLED") {
-        return NextResponse.json({ success: false, error: "Students can only cancel bookings." }, { status: 403 });
-      }
-    }
-
-    if (session.user.role === "LANDLORD") {
-      if (booking.property.landlordId !== session.user.id) {
-        return NextResponse.json({ success: false, error: "You can only update requests for your listings." }, { status: 403 });
-      }
-    }
-
-    const updatedBooking = await prisma.booking.update({
-      where: { id: bookingId },
-      data: { status },
       include: {
         student: { select: { id: true, name: true, email: true } },
         property: {
@@ -191,49 +152,85 @@ export async function PATCH(request: Request) {
       },
     });
 
-    // Send email notifications based on the new status (fire-and-forget)
+    if (!booking) return NextResponse.json({ success: false, error: "Booking not found." }, { status: 404 });
+
+    if (session.user.role === "STUDENT") {
+      if (booking.studentId !== session.user.id) return NextResponse.json({ success: false, error: "Not your booking." }, { status: 403 });
+      if (status !== "CANCELLED") return NextResponse.json({ success: false, error: "Students can only cancel bookings." }, { status: 403 });
+    }
+
+    if (session.user.role === "LANDLORD") {
+      if (booking.property.landlordId !== session.user.id) return NextResponse.json({ success: false, error: "Not your listing." }, { status: 403 });
+    }
+
+    let updateData: Record<string, unknown> = { status };
+
+    // Landlord confirms → move to AWAITING_PAYMENT and snapshot costs
+    if (status === "CONFIRMED" && session.user.role === "LANDLORD") {
+      updateData = {
+        status: "AWAITING_PAYMENT",
+        amount: booking.property.price,
+        agencyFee: 0,
+        cautionFee: 0,
+        expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48 hours
+      };
+    }
+
+    // Student/landlord cancels a PAID booking → trigger refund
+    if (status === "CANCELLED" && booking.status === "PAID") {
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/payments/refund`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Cookie: request.headers.get("cookie") ?? "" },
+          body: JSON.stringify({ bookingId }),
+        });
+        return NextResponse.json({ success: true, message: "Cancellation and refund initiated." });
+      } catch { /* refund will handle its own DB updates */ }
+    }
+
+    const updatedBooking = await prisma.booking.update({
+      where: { id: bookingId },
+      data: updateData,
+      include: {
+        student: { select: { id: true, name: true, email: true } },
+        property: { include: { location: true, landlord: { select: { id: true, name: true, email: true } } } },
+      },
+    });
+
     const { student, property } = updatedBooking;
     const locationName = property.location.name;
 
-    if (status === "CONFIRMED") {
+    if (updateData.status === "AWAITING_PAYMENT") {
       sendBookingConfirmedToStudent({
-        studentEmail:     student.email,
-        studentName:      student.name,
-        propertyTitle:    property.title,
+        studentEmail: student.email,
+        studentName: student.name,
+        propertyTitle: property.title,
         propertyLocation: locationName,
-        landlordName:     property.landlord.name,
-      }).catch((err) => console.error('[email] booking confirmed notification failed:', err));
+        landlordName: property.landlord.name,
+      }).catch(console.error);
     }
 
     if (status === "CANCELLED") {
       const cancelledBy = session.user.role === "STUDENT" ? "student" : "landlord";
-
-      // Always notify the student
       sendBookingCancelledToStudent({
-        studentEmail:     student.email,
-        studentName:      student.name,
-        propertyTitle:    property.title,
+        studentEmail: student.email,
+        studentName: student.name,
+        propertyTitle: property.title,
         propertyLocation: locationName,
         cancelledBy,
-      }).catch((err) => console.error('[email] booking cancelled (student) notification failed:', err));
-
-      // If the student cancelled, also notify the landlord
+      }).catch(console.error);
       if (cancelledBy === "student") {
         sendBookingCancelledToLandlord({
-          landlordEmail:    property.landlord.email,
-          landlordName:     property.landlord.name,
-          studentName:      student.name,
-          propertyTitle:    property.title,
+          landlordEmail: property.landlord.email,
+          landlordName: property.landlord.name,
+          studentName: student.name,
+          propertyTitle: property.title,
           propertyLocation: locationName,
-        }).catch((err) => console.error('[email] booking cancelled (landlord) notification failed:', err));
+        }).catch(console.error);
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      data: updatedBooking,
-      message: `Booking ${status.toLowerCase()} successfully.`,
-    });
+    return NextResponse.json({ success: true, data: updatedBooking, message: `Booking updated.` });
   } catch (error) {
     console.error("[BOOKINGS PATCH ERROR]", error);
     return NextResponse.json({ success: false, error: "Failed to update booking." }, { status: 500 });

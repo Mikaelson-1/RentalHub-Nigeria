@@ -4,8 +4,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { MapPin, Wifi, Zap, Shield, Droplets, Car, Sun, CheckCircle, Lock } from "lucide-react";
+import { MapPin, Wifi, Zap, Shield, Droplets, Car, Sun, CheckCircle, Home, Phone, Calendar, FileText, Clock } from "lucide-react";
 import { getPropertyImage } from "@/lib/property-image";
+
+type BookingStatus = "PENDING" | "CONFIRMED" | "AWAITING_PAYMENT" | "PAID" | "CANCELLED" | "EXPIRED";
+type PaymentStatus = "PENDING" | "SUCCESS" | "FAILED" | "REFUNDED" | "PARTIAL_REFUND";
 
 interface PropertyDetail {
   id: string;
@@ -15,13 +18,21 @@ interface PropertyDetail {
   distanceToCampus: number | null;
   amenities: string[];
   location: { name: string };
-  landlord: { name: string };
+  landlord: { id: string; name: string; phoneNumber?: string | null };
 }
 
 interface BookingItem {
   id: string;
-  status: "PENDING" | "CONFIRMED" | "CANCELLED";
+  status: BookingStatus;
+  paymentStatus: PaymentStatus | null;
   createdAt: string;
+  expiresAt: string | null;
+  paidAt: string | null;
+  amount: number | null;
+  agencyFee: number | null;
+  cautionFee: number | null;
+  moveInDate: string | null;
+  leaseEndDate: string | null;
   property: PropertyDetail;
 }
 
@@ -43,6 +54,95 @@ function AmenityIcon({ name }: { name: string }) {
   return <CheckCircle className="w-3 h-3" />;
 }
 
+function PaymentTimer({ expiresAt }: { expiresAt: string }) {
+  const [timeLeft, setTimeLeft] = useState("");
+
+  useEffect(() => {
+    const update = () => {
+      const diff = new Date(expiresAt).getTime() - Date.now();
+      if (diff <= 0) { setTimeLeft("Expired"); return; }
+      const hours = Math.floor(diff / 3600000);
+      const minutes = Math.floor((diff % 3600000) / 60000);
+      setTimeLeft(`${hours}h ${minutes}m remaining`);
+    };
+    update();
+    const t = setInterval(update, 60000);
+    return () => clearInterval(t);
+  }, [expiresAt]);
+
+  return (
+    <span className="flex items-center gap-1 text-xs text-orange-600 font-medium">
+      <Clock className="w-3 h-3" /> {timeLeft}
+    </span>
+  );
+}
+
+function ApartmentManagementCard({ booking }: { booking: BookingItem }) {
+  const formatPrice = (v: number | string | null) =>
+    v === null || v === undefined ? "—" : new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(Number(v));
+
+  return (
+    <div className="mt-4 border border-green-200 bg-green-50 rounded-xl p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Home className="w-5 h-5 text-green-700" />
+        <h4 className="font-bold text-green-900 text-sm">Your Apartment</h4>
+        <span className="ml-auto bg-green-500 text-white text-xs px-2.5 py-0.5 rounded-full font-semibold">PAID</span>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+        {/* Payment summary */}
+        <div className="bg-white rounded-lg p-3 border border-green-100">
+          <p className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">Payment</p>
+          <p className="text-gray-700">Rent: <span className="font-semibold">{formatPrice(booking.amount)}</span></p>
+          {booking.agencyFee ? <p className="text-gray-700">Agency: <span className="font-semibold">{formatPrice(booking.agencyFee)}</span></p> : null}
+          {booking.cautionFee ? <p className="text-gray-700">Caution: <span className="font-semibold">{formatPrice(booking.cautionFee)}</span></p> : null}
+          <p className="text-xs text-gray-400 mt-2">
+            Paid on {booking.paidAt ? new Date(booking.paidAt).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" }) : "—"}
+          </p>
+        </div>
+
+        {/* Lease info */}
+        <div className="bg-white rounded-lg p-3 border border-green-100">
+          <p className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">Tenancy</p>
+          <div className="flex items-start gap-2">
+            <Calendar className="w-4 h-4 text-gray-400 mt-0.5" />
+            <div>
+              <p className="text-gray-700 text-xs">Move-in: <span className="font-semibold">{booking.moveInDate ? new Date(booking.moveInDate).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" }) : "Not set"}</span></p>
+              <p className="text-gray-700 text-xs mt-0.5">Lease ends: <span className="font-semibold">{booking.leaseEndDate ? new Date(booking.leaseEndDate).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" }) : "Not set"}</span></p>
+            </div>
+          </div>
+        </div>
+
+        {/* Landlord contact */}
+        <div className="bg-white rounded-lg p-3 border border-green-100">
+          <p className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">Landlord Contact</p>
+          <p className="text-gray-700 font-medium">{booking.property.landlord.name}</p>
+          {booking.property.landlord.phoneNumber && (
+            <a
+              href={`tel:${booking.property.landlord.phoneNumber}`}
+              className="flex items-center gap-1.5 text-[#192F59] hover:text-[#E67E22] text-sm mt-1 transition-colors"
+            >
+              <Phone className="w-3.5 h-3.5" /> {booking.property.landlord.phoneNumber}
+            </a>
+          )}
+        </div>
+
+        {/* Receipt */}
+        <div className="bg-white rounded-lg p-3 border border-green-100 flex flex-col justify-between">
+          <p className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">Documents</p>
+          <Link
+            href={`/student/bookings/${booking.id}/receipt`}
+            className="flex items-center gap-2 text-sm text-[#192F59] hover:text-[#E67E22] font-medium transition-colors"
+          >
+            <FileText className="w-4 h-4" />
+            View Payment Receipt
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StudentDashboardInner() {
   const searchParams = useSearchParams();
   const defaultTab = searchParams.get("tab") === "bookings" ? "bookings" : "browse";
@@ -53,6 +153,7 @@ function StudentDashboardInner() {
   const [isLoading, setIsLoading] = useState(true);
   const [bookingPropertyId, setBookingPropertyId] = useState("");
   const [updatingBookingId, setUpdatingBookingId] = useState("");
+  const [payingBookingId, setPayingBookingId] = useState("");
   const [error, setError] = useState("");
 
   const loadStudentData = useCallback(async () => {
@@ -76,7 +177,6 @@ function StudentDashboardInner() {
       }
 
       setProperties(propertiesPayload.data?.items ?? []);
-      // Bookings API returns data as a plain array
       setBookings(Array.isArray(bookingsPayload.data) ? bookingsPayload.data : []);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load dashboard.");
@@ -128,14 +228,45 @@ function StudentDashboardInner() {
     }
   };
 
+  const initiatePayment = async (bookingId: string) => {
+    setPayingBookingId(bookingId);
+    setError("");
+    try {
+      const response = await fetch("/api/payments/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || "Failed to initiate payment.");
+      // Redirect to Paystack checkout
+      window.location.href = payload.data.authorizationUrl;
+    } catch (payErr) {
+      setError(payErr instanceof Error ? payErr.message : "Failed to initiate payment.");
+      setPayingBookingId("");
+    }
+  };
+
   const hasActiveBooking = (propertyId: string) =>
-    bookings.some((b) => b.property.id === propertyId && (b.status === "PENDING" || b.status === "CONFIRMED"));
+    bookings.some((b) => b.property.id === propertyId && ["PENDING", "CONFIRMED", "AWAITING_PAYMENT", "PAID"].includes(b.status));
 
   const formatPrice = (price: number | string) =>
     new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(Number(price));
 
-  const confirmedBookings = useMemo(() => bookings.filter((b) => b.status === "CONFIRMED").length, [bookings]);
+  const confirmedBookings = useMemo(() => bookings.filter((b) => b.status === "CONFIRMED" || b.status === "AWAITING_PAYMENT").length, [bookings]);
   const pendingBookings = useMemo(() => bookings.filter((b) => b.status === "PENDING").length, [bookings]);
+  const paidBookings = useMemo(() => bookings.filter((b) => b.status === "PAID").length, [bookings]);
+
+  const statusBadgeClass = (status: BookingStatus) => {
+    switch (status) {
+      case "CONFIRMED": return "bg-blue-500 text-white";
+      case "AWAITING_PAYMENT": return "bg-orange-500 text-white";
+      case "PAID": return "bg-green-500 text-white";
+      case "PENDING": return "bg-amber-400 text-gray-900";
+      case "EXPIRED": return "bg-gray-400 text-white";
+      default: return "bg-gray-400 text-white";
+    }
+  };
 
   return (
     <div>
@@ -149,13 +280,17 @@ function StudentDashboardInner() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-xl shadow-sm">
           <div className="text-3xl font-bold text-primary-green">{bookings.length}</div>
           <div className="text-gray-600">Total Bookings</div>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="text-3xl font-bold text-primary-green">{confirmedBookings}</div>
+          <div className="text-3xl font-bold text-green-600">{paidBookings}</div>
+          <div className="text-gray-600">Paid</div>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-sm">
+          <div className="text-3xl font-bold text-blue-600">{confirmedBookings}</div>
           <div className="text-gray-600">Confirmed</div>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-sm">
@@ -246,12 +381,8 @@ function StudentDashboardInner() {
                       className="object-cover"
                     />
                     <div className="absolute top-3 right-3">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        booking.status === "CONFIRMED" ? "bg-green-500 text-white" :
-                        booking.status === "PENDING" ? "bg-amber-400 text-gray-900" :
-                        "bg-gray-400 text-white"
-                      }`}>
-                        {booking.status}
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusBadgeClass(booking.status)}`}>
+                        {booking.status.replace("_", " ")}
                       </span>
                     </div>
                   </div>
@@ -298,27 +429,69 @@ function StudentDashboardInner() {
                       <span>Booked {new Date(booking.createdAt).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}</span>
                     </div>
 
-                    {/* Actions */}
-                    {booking.status !== "CANCELLED" && (
+                    {/* AWAITING_PAYMENT — payment CTA */}
+                    {booking.status === "AWAITING_PAYMENT" && (
+                      <div className="mt-5 border border-orange-200 bg-orange-50 rounded-xl p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-sm font-semibold text-orange-800">Payment Required</p>
+                          {booking.expiresAt && <PaymentTimer expiresAt={booking.expiresAt} />}
+                        </div>
+                        <p className="text-xs text-orange-700 mb-3">
+                          The landlord has confirmed your booking. Complete payment within 48 hours to secure your apartment.
+                        </p>
+                        <div className="flex items-center justify-between text-sm mb-4">
+                          <span className="text-gray-600">Total Amount:</span>
+                          <span className="font-bold text-orange-900 text-base">
+                            {formatPrice((Number(booking.amount ?? booking.property.price) + Number(booking.agencyFee ?? 0) + Number(booking.cautionFee ?? 0)))}
+                          </span>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <button
+                            onClick={() => initiatePayment(booking.id)}
+                            disabled={payingBookingId === booking.id}
+                            className="flex-1 bg-[#192F59] hover:bg-[#14264a] disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-colors text-sm"
+                          >
+                            {payingBookingId === booking.id ? "Redirecting to Paystack..." : "Pay Now via Paystack"}
+                          </button>
+                          <button
+                            onClick={() => cancelBooking(booking.id)}
+                            disabled={updatingBookingId === booking.id}
+                            className="sm:w-auto text-sm text-red-500 hover:text-red-600 disabled:opacity-50 border border-red-200 px-5 py-3 rounded-xl hover:bg-red-50 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PAID — apartment management */}
+                    {booking.status === "PAID" && (
+                      <ApartmentManagementCard booking={booking} />
+                    )}
+
+                    {/* PENDING / CONFIRMED — informational actions */}
+                    {(booking.status === "PENDING" || booking.status === "CONFIRMED") && (
                       <div className="mt-5 flex flex-col sm:flex-row gap-3">
-                        <button
-                          className="flex-1 flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-500 text-gray-900 font-bold py-3.5 rounded-xl transition-colors text-sm"
-                          onClick={() => alert("Payment integration coming soon. Your booking is reserved — the landlord has been notified.")}
-                        >
-                          <Lock className="w-4 h-4" />
-                          Pay now to secure
-                        </button>
+                        <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600">
+                          {booking.status === "PENDING"
+                            ? "Waiting for the landlord to confirm your request."
+                            : "Landlord confirmed! Awaiting payment instructions."}
+                        </div>
                         <button
                           onClick={() => cancelBooking(booking.id)}
                           disabled={updatingBookingId === booking.id}
-                          className="sm:w-auto text-sm text-red-500 hover:text-red-600 disabled:opacity-50 border border-red-200 px-5 py-3.5 rounded-xl hover:bg-red-50 transition-colors"
+                          className="sm:w-auto text-sm text-red-500 hover:text-red-600 disabled:opacity-50 border border-red-200 px-5 py-3 rounded-xl hover:bg-red-50 transition-colors"
                         >
-                          {updatingBookingId === booking.id ? "Cancelling..." : "Cancel Booking"}
+                          {updatingBookingId === booking.id ? "Cancelling..." : "Cancel"}
                         </button>
                       </div>
                     )}
+
                     {booking.status === "CANCELLED" && (
                       <p className="mt-4 text-sm text-gray-400 text-center">This booking was cancelled.</p>
+                    )}
+                    {booking.status === "EXPIRED" && (
+                      <p className="mt-4 text-sm text-orange-500 text-center">Payment window expired. Please book again.</p>
                     )}
                   </div>
                 </div>

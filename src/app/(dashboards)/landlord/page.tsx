@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ShieldAlert, ShieldX, Clock } from "lucide-react";
+import { ShieldAlert, ShieldX, Clock, TrendingUp } from "lucide-react";
 
 interface Listing {
   id: string;
@@ -20,7 +20,7 @@ interface Listing {
 
 interface BookingRequest {
   id: string;
-  status: "PENDING" | "CONFIRMED" | "CANCELLED";
+  status: "PENDING" | "CONFIRMED" | "AWAITING_PAYMENT" | "PAID" | "CANCELLED" | "EXPIRED";
   createdAt: string;
   student: {
     name: string;
@@ -29,6 +29,22 @@ interface BookingRequest {
     id: string;
     title: string;
   };
+}
+
+interface EarningsData {
+  totalEarnings: number;
+  monthlyEarnings: number;
+  totalPaidBookings: number;
+  bookings: {
+    id: string;
+    propertyTitle: string;
+    studentName: string;
+    amount: number;
+    paidAt: string | null;
+    paystackRef: string | null;
+    moveInDate: string | null;
+    leaseEndDate: string | null;
+  }[];
 }
 
 interface ListingsResponse {
@@ -70,6 +86,13 @@ function VerificationBanner({ status }: { status?: string }) {
       cta: "Resubmit Documents",
       message: "Your verification was rejected. Please review the feedback and resubmit.",
     },
+    SUSPENDED: {
+      icon: <ShieldX className="w-5 h-5 text-red-600" />,
+      bg: "bg-red-50 border-red-200",
+      text: "text-red-800",
+      cta: null,
+      message: "Your account has been suspended by an administrator. Contact support for more information.",
+    },
   };
 
   const c = config[status];
@@ -96,9 +119,11 @@ function VerificationBanner({ status }: { status?: string }) {
 export default function LandlordDashboard() {
   const { data: session } = useSession();
   const verificationStatus = (session?.user as { verificationStatus?: string })?.verificationStatus;
-  const [activeTab, setActiveTab] = useState<"listings" | "requests">("listings");
+  const [activeTab, setActiveTab] = useState<"listings" | "requests" | "earnings">("listings");
   const [listings, setListings] = useState<Listing[]>([]);
   const [requests, setRequests] = useState<BookingRequest[]>([]);
+  const [earnings, setEarnings] = useState<EarningsData | null>(null);
+  const [earningsLoading, setEarningsLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatingRequestId, setUpdatingRequestId] = useState("");
@@ -133,9 +158,24 @@ export default function LandlordDashboard() {
     }
   }, []);
 
+  const loadEarnings = useCallback(async () => {
+    if (earnings) return; // already loaded
+    setEarningsLoading(true);
+    try {
+      const res = await fetch("/api/landlord/earnings", { cache: "no-store" });
+      const json = await res.json();
+      if (res.ok && json.success) setEarnings(json.data);
+    } catch { /* silent */ }
+    finally { setEarningsLoading(false); }
+  }, [earnings]);
+
   useEffect(() => {
     loadDashboardData();
   }, [loadDashboardData]);
+
+  useEffect(() => {
+    if (activeTab === "earnings") loadEarnings();
+  }, [activeTab, loadEarnings]);
 
   const totalViews = useMemo(
     () => listings.reduce((acc, listing) => acc + (listing._count?.bookings ?? 0), 0),
@@ -173,6 +213,18 @@ export default function LandlordDashboard() {
     } finally {
       setUpdatingRequestId("");
     }
+  };
+
+  const statusBadge = (status: string) => {
+    const map: Record<string, string> = {
+      PENDING: "bg-yellow-100 text-yellow-800",
+      CONFIRMED: "bg-blue-100 text-blue-800",
+      AWAITING_PAYMENT: "bg-orange-100 text-orange-800",
+      PAID: "bg-green-100 text-green-800",
+      CANCELLED: "bg-red-100 text-red-800",
+      EXPIRED: "bg-gray-100 text-gray-600",
+    };
+    return map[status] ?? "bg-gray-100 text-gray-600";
   };
 
   return (
@@ -255,11 +307,22 @@ export default function LandlordDashboard() {
                 </span>
               )}
             </button>
+            <button
+              onClick={() => setActiveTab("earnings")}
+              className={`px-6 py-4 text-sm font-medium border-b-2 flex items-center gap-1.5 ${
+                activeTab === "earnings"
+                  ? "border-primary-green text-primary-green"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <TrendingUp className="w-4 h-4" />
+              Earnings
+            </button>
           </nav>
         </div>
 
         <div className="p-6">
-          {isLoading ? (
+          {isLoading && activeTab !== "earnings" ? (
             <div className="text-center py-8 text-gray-500">Loading dashboard...</div>
           ) : activeTab === "listings" ? (
             listings.length === 0 ? (
@@ -297,12 +360,18 @@ export default function LandlordDashboard() {
                           </span>
                         </td>
                         <td className="py-4 px-4 text-gray-600">{listing._count?.bookings ?? 0}</td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-4 flex gap-3">
                           <Link
                             href={`/landlord/properties/${listing.id}`}
                             className="text-sm text-[#192F59] hover:text-[#E67E22] font-medium transition-colors"
                           >
-                            View details
+                            View
+                          </Link>
+                          <Link
+                            href={`/landlord/edit-property/${listing.id}`}
+                            className="text-sm text-gray-500 hover:text-[#E67E22] font-medium transition-colors"
+                          >
+                            Edit
                           </Link>
                         </td>
                       </tr>
@@ -311,54 +380,109 @@ export default function LandlordDashboard() {
                 </table>
               </div>
             )
-          ) : requests.length === 0 ? (
-            <div className="text-center py-10 text-gray-500">No tenant requests yet.</div>
-          ) : (
-            <div className="space-y-4">
-              {requests.map((request) => (
-                <div
-                  key={request.id}
-                  className="border border-gray-200 rounded-lg p-4 flex justify-between items-center"
-                >
-                  <div>
-                    <h3 className="font-semibold text-navy">{request.student.name}</h3>
-                    <p className="text-gray-600 text-sm">Interested in: {request.property.title}</p>
-                    <p className="text-gray-500 text-xs mt-1">
-                      Requested on {new Date(request.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  {request.status === "PENDING" ? (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => updateRequestStatus(request.id, "CONFIRMED")}
-                        disabled={updatingRequestId === request.id}
-                        className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white px-3 py-1 rounded-md text-sm"
-                      >
-                        Accept
-                      </button>
-                      <button
-                        onClick={() => updateRequestStatus(request.id, "CANCELLED")}
-                        disabled={updatingRequestId === request.id}
-                        className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-3 py-1 rounded-md text-sm"
-                      >
-                        Decline
-                      </button>
+          ) : activeTab === "requests" ? (
+            requests.length === 0 ? (
+              <div className="text-center py-10 text-gray-500">No tenant requests yet.</div>
+            ) : (
+              <div className="space-y-4">
+                {requests.map((request) => (
+                  <div
+                    key={request.id}
+                    className="border border-gray-200 rounded-lg p-4 flex justify-between items-center"
+                  >
+                    <div>
+                      <h3 className="font-semibold text-navy">{request.student.name}</h3>
+                      <p className="text-gray-600 text-sm">Interested in: {request.property.title}</p>
+                      <p className="text-gray-500 text-xs mt-1">
+                        Requested on {new Date(request.createdAt).toLocaleDateString()}
+                      </p>
                     </div>
-                  ) : (
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        request.status === "CONFIRMED"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {request.status}
-                    </span>
-                  )}
+                    {request.status === "PENDING" ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => updateRequestStatus(request.id, "CONFIRMED")}
+                          disabled={updatingRequestId === request.id}
+                          className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white px-3 py-1 rounded-md text-sm"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => updateRequestStatus(request.id, "CANCELLED")}
+                          disabled={updatingRequestId === request.id}
+                          className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-3 py-1 rounded-md text-sm"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    ) : (
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusBadge(request.status)}`}>
+                        {request.status.replace("_", " ")}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
+          ) : activeTab === "earnings" ? (
+            earningsLoading ? (
+              <div className="text-center py-8 text-gray-500">Loading earnings...</div>
+            ) : !earnings ? (
+              <div className="text-center py-10 text-gray-500">No earnings data available.</div>
+            ) : (
+              <div>
+                {/* Earnings summary cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
+                    <p className="text-sm font-medium text-green-700 mb-1">Total Earnings</p>
+                    <p className="text-3xl font-bold text-green-800">{formatPrice(earnings.totalEarnings)}</p>
+                    <p className="text-xs text-green-600 mt-1">All time</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+                    <p className="text-sm font-medium text-blue-700 mb-1">This Month</p>
+                    <p className="text-3xl font-bold text-blue-800">{formatPrice(earnings.monthlyEarnings)}</p>
+                    <p className="text-xs text-blue-600 mt-1">Current month</p>
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-xl p-6">
+                    <p className="text-sm font-medium text-gray-600 mb-1">Paid Bookings</p>
+                    <p className="text-3xl font-bold text-navy">{earnings.totalPaidBookings}</p>
+                    <p className="text-xs text-gray-400 mt-1">Completed payments</p>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
+
+                {/* Earnings table */}
+                {earnings.bookings.length === 0 ? (
+                  <div className="text-center py-10 text-gray-500">No paid bookings yet.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[700px]">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Property</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Student</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Amount</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Paid On</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Move-in</th>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">Ref</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {earnings.bookings.map((b) => (
+                          <tr key={b.id} className="border-b border-gray-100">
+                            <td className="py-4 px-4 font-medium text-navy">{b.propertyTitle}</td>
+                            <td className="py-4 px-4 text-gray-600">{b.studentName}</td>
+                            <td className="py-4 px-4 text-green-700 font-semibold">{formatPrice(b.amount)}</td>
+                            <td className="py-4 px-4 text-gray-600">{b.paidAt ? new Date(b.paidAt).toLocaleDateString() : "—"}</td>
+                            <td className="py-4 px-4 text-gray-600">{b.moveInDate ? new Date(b.moveInDate).toLocaleDateString() : "—"}</td>
+                            <td className="py-4 px-4 text-xs text-gray-400 font-mono">{b.paystackRef ?? "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )
+          ) : null}
         </div>
       </div>
     </div>

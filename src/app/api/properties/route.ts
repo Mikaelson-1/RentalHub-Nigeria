@@ -108,7 +108,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { title, description, price, locationId, distanceToCampus, amenities = [], images = [] } = body;
+    const { title, description, price, locationId, distanceToCampus, amenities = [], images = [], vacantUnits } = body;
 
     if (!title?.trim() || !description?.trim() || !price || !locationId) {
       return NextResponse.json(
@@ -182,6 +182,7 @@ export async function POST(request: Request) {
         amenities,
         images,
         status:           'PENDING',
+        vacantUnits:      vacantUnits !== undefined ? Number(vacantUnits) : 1,
         aiScamFlag,
         aiScamReason,
       },

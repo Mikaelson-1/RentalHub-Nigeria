@@ -1,6 +1,5 @@
 // ============================================================
 // RentalHub-BOUESTI — Prisma Schema
-// Database: PostgreSQL (Railway)
 // ============================================================
 
 generator client {
@@ -11,8 +10,6 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
-// ── Enums ────────────────────────────────────────────────────
 
 enum Role {
   STUDENT
@@ -37,41 +34,44 @@ enum PropertyStatus {
 enum BookingStatus {
   PENDING
   CONFIRMED
+  AWAITING_PAYMENT
+  PAID
   CANCELLED
+  EXPIRED
 }
 
-// ── Models ───────────────────────────────────────────────────
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+  PARTIAL_REFUND
+}
 
-/// A platform user. Can be a student, landlord, or admin.
 model User {
   id                 String             @id @default(cuid())
   name               String
   email              String             @unique
-  password           String             /// Bcrypt-hashed — never store plain text
+  password           String
   role               Role               @default(STUDENT)
   verificationStatus VerificationStatus @default(UNVERIFIED)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
-  // Landlord verification fields
   phoneNumber              String?
   phoneVerified            Boolean   @default(false)
-  governmentIdUrl          String?   /// Uploaded national ID / passport / driver's licence
-  selfieUrl                String?   /// Photo of the person holding their ID
-  isDirectOwner            Boolean?  /// true = owns the property; false = acting on landlord's behalf
-  landlordAware            Boolean?  /// If not direct owner — did the landlord consent?
-  ownershipProofUrl        String?   /// C of O, deed, tenancy agreement, or signed landlord letter
-  verificationNote         String?   @db.Text /// Admin feedback on rejection
-  verificationSubmittedAt  DateTime? /// When all docs were submitted
+  governmentIdUrl          String?
+  selfieUrl                String?
+  isDirectOwner            Boolean?
+  landlordAware            Boolean?
+  ownershipProofUrl        String?
+  verificationNote         String?   @db.Text
+  verificationSubmittedAt  DateTime?
 
-  // Profile
-  avatarUrl         String?   /// Profile photo URL
-
-  // AI Pre-screening fields
+  avatarUrl         String?
   aiPreScreenScore  String?
   aiPreScreenNote   String?
 
-  // Relations
   properties         Property[]         @relation("LandlordProperties")
   reviewedProperties Property[]         @relation("PropertyReviews")
   bookings           Booking[]          @relation("StudentBookings")
@@ -83,34 +83,29 @@ model User {
   @@map("users")
 }
 
-/// A geographical area in or around Ikere-Ekiti (e.g. Uro, Afao Road).
 model Location {
   id             String     @id @default(cuid())
   name           String     @unique
-  /// Classification helps group areas: e.g. "Core Quarter", "Residential Estate", "Neighbourhood"
   classification String     @default("Neighbourhood")
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
-  // Relations
   properties     Property[]
 
   @@index([classification])
   @@map("locations")
 }
 
-/// A rental property listed by a landlord.
 model Property {
   id               String         @id @default(cuid())
   title            String
   description      String         @db.Text
-  price            Decimal        @db.Decimal(10, 2) /// Monthly rent in NGN
-  distanceToCampus Decimal?       @db.Decimal(5, 2)  /// Distance in kilometres to BOUESTI main gate
-  /// JSON array of amenity strings e.g. ["WiFi", "Water", "Security", "Generator"]
+  price            Decimal        @db.Decimal(10, 2)
+  distanceToCampus Decimal?       @db.Decimal(5, 2)
   amenities        Json           @default("[]")
-  /// JSON array of image URL strings
   images           Json           @default("[]")
   status           PropertyStatus @default(PENDING)
+  vacantUnits      Int            @default(1)
   reviewedAt       DateTime?
   reviewNote       String?        @db.Text
   aiScamFlag       Boolean        @default(false)
@@ -118,12 +113,10 @@ model Property {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
-  // Foreign keys
   landlordId       String
   locationId       String
   reviewedById     String?
 
-  // Relations
   landlord         User           @relation("LandlordProperties", fields: [landlordId], references: [id], onDelete: Cascade)
   reviewedBy       User?          @relation("PropertyReviews", fields: [reviewedById], references: [id])
   location         Location       @relation(fields: [locationId], references: [id])
@@ -137,33 +130,68 @@ model Property {
   @@map("properties")
 }
 
-/// A booking made by a student for a property.
 model Booking {
-  id         String        @id @default(cuid())
-  status     BookingStatus @default(PENDING)
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  id              String        @id @default(cuid())
+  status          BookingStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  // Foreign keys
+  // Snapshotted at booking time
+  amount          Decimal?      @db.Decimal(10, 2)
+  agencyFee       Decimal?      @db.Decimal(10, 2)
+  cautionFee      Decimal?      @db.Decimal(10, 2)
+
+  // Payment tracking
+  paymentStatus   PaymentStatus @default(PENDING)
+  paidAt          DateTime?
+  expiresAt       DateTime?     // auto-cancel if unpaid after this
+
+  // Tenancy
+  moveInDate      DateTime?
+  leaseEndDate    DateTime?
+
   studentId  String
   propertyId String
 
-  // Relations
   student    User          @relation("StudentBookings", fields: [studentId], references: [id], onDelete: Cascade)
   property   Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  payments   Payment[]
 
   @@index([studentId])
   @@index([propertyId])
   @@index([status])
+  @@index([paymentStatus])
+  @@index([expiresAt])
   @@map("bookings")
 }
 
-/// Perceptual hash of every uploaded property image — used to detect duplicates and cross-listing fraud.
+model Payment {
+  id             String        @id @default(cuid())
+  bookingId      String
+  amount         Decimal       @db.Decimal(10, 2)
+  status         PaymentStatus @default(PENDING)
+  paystackRef    String?       @unique
+  channel        String?
+  paidAt         DateTime?
+  refundedAt     DateTime?
+  refundAmount   Decimal?      @db.Decimal(10, 2)
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  booking        Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([paystackRef])
+  @@index([status])
+  @@map("payments")
+}
+
 model ImageHash {
   id           String   @id @default(cuid())
-  hash         String               /// 64-char average-hash string
+  hash         String
   imageUrl     String
-  propertyId   String?              /// null while property is still being created
+  propertyId   String?
   uploadedById String
   flagged      Boolean  @default(false)
   flagReason   String?  @db.Text
