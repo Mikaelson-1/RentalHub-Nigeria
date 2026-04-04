@@ -105,3 +105,49 @@ export async function PUT(request: Request, { params }: RouteContext) {
     return NextResponse.json({ success: false, error: 'Failed to update property.' }, { status: 500 });
   }
 }
+
+export async function DELETE(_request: Request, { params }: RouteContext) {
+  try {
+    const { id } = await params;
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user) {
+      return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
+    }
+
+    const existing = await prisma.property.findUnique({
+      where: { id },
+      select: { landlordId: true, status: true, _count: { select: { bookings: true } } },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ success: false, error: 'Property not found.' }, { status: 404 });
+    }
+
+    const isOwner = session.user.role === 'LANDLORD' && existing.landlordId === session.user.id;
+    const isAdmin = session.user.role === 'ADMIN';
+
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json({ success: false, error: 'You are not authorised to delete this property.' }, { status: 403 });
+    }
+
+    // Prevent deletion if there are active (non-cancelled) bookings
+    const activeBookings = await prisma.booking.count({
+      where: { propertyId: id, status: { notIn: ['CANCELLED', 'EXPIRED'] } },
+    });
+
+    if (activeBookings > 0 && !isAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Cannot delete a property with active bookings. Cancel all bookings first or contact support.' },
+        { status: 400 },
+      );
+    }
+
+    await prisma.property.delete({ where: { id } });
+
+    return NextResponse.json({ success: true, message: 'Property deleted successfully.' });
+  } catch (error) {
+    console.error('[PROPERTY DELETE ERROR]', error);
+    return NextResponse.json({ success: false, error: 'Failed to delete property.' }, { status: 500 });
+  }
+}

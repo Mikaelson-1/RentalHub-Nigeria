@@ -69,12 +69,18 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
   const session = await getServerSession(authOptions);
   const userRole = session?.user?.role ?? null;
 
-  let hasBooking = false;
+  let existingBookingStatus: "PENDING" | "CONFIRMED" | "AWAITING_PAYMENT" | "PAID" | null = null;
   if (userRole === "STUDENT" && session?.user?.id) {
     const existing = await prisma.booking.findFirst({
-      where: { studentId: session.user.id, propertyId: property.id, status: { in: ["PENDING", "CONFIRMED"] } },
+      where: {
+        studentId: session.user.id,
+        propertyId: property.id,
+        status: { in: ["PENDING", "CONFIRMED", "AWAITING_PAYMENT", "PAID"] },
+      },
+      select: { status: true },
+      orderBy: { createdAt: "desc" },
     });
-    hasBooking = !!existing;
+    existingBookingStatus = (existing?.status as typeof existingBookingStatus) ?? null;
   }
 
   const amenities = Array.isArray(property.amenities) ? property.amenities : [];
@@ -145,7 +151,7 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
             <p className="text-sm text-gray-500 mt-1">Verification: {property.landlord.verificationStatus}</p>
           </div>
 
-          <BookButton propertyId={property.id} hasBooking={hasBooking} userRole={userRole} />
+          <BookButton propertyId={property.id} existingBookingStatus={existingBookingStatus} userRole={userRole} />
         </div>
       </div>
     </div>

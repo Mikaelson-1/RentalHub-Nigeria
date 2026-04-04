@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Trash2 } from "lucide-react";
 
 interface Location {
   id: string;
@@ -52,6 +52,7 @@ export default function EditPropertyPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -103,6 +104,21 @@ export default function EditPropertyPage() {
     setAmenities((prev) =>
       prev.includes(amenity) ? prev.filter((a) => a !== amenity) : [...prev, amenity],
     );
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this property? This cannot be undone.")) return;
+    setIsDeleting(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/properties/${id}`, { method: "DELETE" });
+      const payload = await response.json();
+      if (!response.ok || !payload.success) throw new Error(payload.error || "Failed to delete property.");
+      router.push("/landlord");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete property.");
+      setIsDeleting(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -280,21 +296,32 @@ export default function EditPropertyPage() {
         </div>
 
         {/* Submit */}
-        <div className="flex items-center justify-end gap-3 pt-2">
-          <Link
-            href="/landlord"
-            className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </Link>
+        <div className="flex items-center justify-between pt-2">
           <button
-            type="submit"
-            disabled={isSaving}
-            className="flex items-center gap-2 bg-[#192F59] hover:bg-[#14264a] disabled:opacity-50 text-white px-6 py-2.5 rounded-lg font-medium text-sm transition-colors"
+            type="button"
+            onClick={handleDelete}
+            disabled={isDeleting || isSaving}
+            className="flex items-center gap-2 text-red-500 hover:text-red-600 disabled:opacity-50 border border-red-200 hover:bg-red-50 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors"
           >
-            <Save className="w-4 h-4" />
-            {isSaving ? "Saving..." : "Save Changes"}
+            <Trash2 className="w-4 h-4" />
+            {isDeleting ? "Deleting..." : "Delete Property"}
           </button>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/landlord"
+              className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </Link>
+            <button
+              type="submit"
+              disabled={isSaving || isDeleting}
+              className="flex items-center gap-2 bg-[#192F59] hover:bg-[#14264a] disabled:opacity-50 text-white px-6 py-2.5 rounded-lg font-medium text-sm transition-colors"
+            >
+              <Save className="w-4 h-4" />
+              {isSaving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
         </div>
       </form>
     </div>
