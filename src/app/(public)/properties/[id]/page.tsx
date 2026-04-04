@@ -80,7 +80,7 @@ export default async function PropertyDetailsPage({ params }: PropertyDetailsPag
       select: { status: true },
       orderBy: { createdAt: "desc" },
     });
-    existingBookingStatus = (existing?.status as typeof existingBookingStatus) ?? null;
+    existingBookingStatus = (existing?.status ?? null) as typeof existingBookingStatus;
   }
 
   const amenities = Array.isArray(property.amenities) ? property.amenities : [];

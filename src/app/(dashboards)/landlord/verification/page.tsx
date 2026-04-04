@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
 import {
   ShieldCheck, Upload, User, Home, FileText,
   CheckCircle, AlertCircle, ChevronRight, ChevronLeft, Loader2,
@@ -26,7 +25,6 @@ const STEPS = [
 ];
 
 export default function VerificationPage() {
-  const router = useRouter();
   const [step, setStep]         = useState<Step>(1);
   const [form, setForm]         = useState<FormState>({
     phoneNumber:       "",
