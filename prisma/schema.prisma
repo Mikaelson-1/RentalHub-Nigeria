@@ -23,7 +23,9 @@ enum Role {
 
 enum VerificationStatus {
   UNVERIFIED
+  UNDER_REVIEW
   VERIFIED
+  REJECTED
   SUSPENDED
 }
 
@@ -52,13 +54,26 @@ model User {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
+  // Landlord verification fields
+  phoneNumber              String?
+  phoneVerified            Boolean   @default(false)
+  governmentIdUrl          String?   /// Uploaded national ID / passport / driver's licence
+  selfieUrl                String?   /// Photo of the person holding their ID
+  isDirectOwner            Boolean?  /// true = owns the property; false = acting on landlord's behalf
+  landlordAware            Boolean?  /// If not direct owner — did the landlord consent?
+  ownershipProofUrl        String?   /// C of O, deed, tenancy agreement, or signed landlord letter
+  verificationNote         String?   @db.Text /// Admin feedback on rejection
+  verificationSubmittedAt  DateTime? /// When all docs were submitted
+
   // Relations
   properties         Property[]         @relation("LandlordProperties")
   reviewedProperties Property[]         @relation("PropertyReviews")
   bookings           Booking[]          @relation("StudentBookings")
+  imageHashes        ImageHash[]
 
   @@index([email])
   @@index([role])
+  @@index([verificationStatus])
   @@map("users")
 }
 
@@ -133,4 +148,22 @@ model Booking {
   @@index([propertyId])
   @@index([status])
   @@map("bookings")
+}
+
+/// Perceptual hash of every uploaded property image — used to detect duplicates and cross-listing fraud.
+model ImageHash {
+  id           String   @id @default(cuid())
+  hash         String               /// 64-char average-hash string
+  imageUrl     String
+  propertyId   String?              /// null while property is still being created
+  uploadedById String
+  flagged      Boolean  @default(false)
+  flagReason   String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([hash])
+  @@index([uploadedById])
+  @@map("image_hashes")
 }

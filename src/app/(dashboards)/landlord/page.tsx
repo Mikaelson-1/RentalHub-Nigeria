@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
+import { ShieldAlert, ShieldCheck, ShieldX, Clock } from "lucide-react";
 
 interface Listing {
   id: string;
@@ -43,7 +45,57 @@ interface BookingsResponse {
   error?: string;
 }
 
+function VerificationBanner({ status }: { status?: string }) {
+  if (!status || status === "VERIFIED") return null;
+
+  const config: Record<string, { icon: React.ReactNode; bg: string; text: string; cta: string | null; message: string }> = {
+    UNVERIFIED: {
+      icon: <ShieldAlert className="w-5 h-5 text-amber-600" />,
+      bg: "bg-amber-50 border-amber-200",
+      text: "text-amber-800",
+      cta: "Complete Verification",
+      message: "Your account is not yet verified. Complete verification so students can trust your listings.",
+    },
+    UNDER_REVIEW: {
+      icon: <Clock className="w-5 h-5 text-blue-600" />,
+      bg: "bg-blue-50 border-blue-200",
+      text: "text-blue-800",
+      cta: null,
+      message: "Your documents are under review. We'll notify you by email within 24–48 hours.",
+    },
+    REJECTED: {
+      icon: <ShieldX className="w-5 h-5 text-red-600" />,
+      bg: "bg-red-50 border-red-200",
+      text: "text-red-800",
+      cta: "Resubmit Documents",
+      message: "Your verification was rejected. Please review the feedback and resubmit.",
+    },
+  };
+
+  const c = config[status];
+  if (!c) return null;
+
+  return (
+    <div className={`flex items-start justify-between gap-4 border rounded-xl px-5 py-4 mb-6 ${c.bg}`}>
+      <div className="flex items-start gap-3">
+        {c.icon}
+        <p className={`text-sm font-medium ${c.text}`}>{c.message}</p>
+      </div>
+      {c.cta && (
+        <Link
+          href="/landlord/verification"
+          className="flex-shrink-0 text-xs font-semibold bg-white border border-current px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          {c.cta}
+        </Link>
+      )}
+    </div>
+  );
+}
+
 export default function LandlordDashboard() {
+  const { data: session } = useSession();
+  const verificationStatus = (session?.user as { verificationStatus?: string })?.verificationStatus;
   const [activeTab, setActiveTab] = useState<"listings" | "requests">("listings");
   const [listings, setListings] = useState<Listing[]>([]);
   const [requests, setRequests] = useState<BookingRequest[]>([]);
@@ -137,6 +189,8 @@ export default function LandlordDashboard() {
           Add Property
         </Link>
       </div>
+
+      <VerificationBanner status={verificationStatus} />
 
       {error && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
