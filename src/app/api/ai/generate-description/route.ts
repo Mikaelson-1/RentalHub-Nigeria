@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       .join("\n");
 
     const model = gemini.getGenerativeModel({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.0-flash-lite",
       systemInstruction:
         "You are a Nigerian student housing listing assistant. Write compelling, honest property descriptions for off-campus accommodation listings near Nigerian universities. Keep descriptions concise (3-4 sentences), factual, and friendly. Focus on what students care about: proximity to campus, utilities, security, and value for money. Write in simple, clear English. Do NOT make up details not provided.",
     });

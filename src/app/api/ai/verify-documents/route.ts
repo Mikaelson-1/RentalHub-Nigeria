@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     ].join("\n");
 
     const model = gemini.getGenerativeModel({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.0-flash-lite",
       systemInstruction:
         'You are a verification pre-screener for a Nigerian student housing platform. You assess landlord verification submissions based on the documents provided and declarations made. You cannot view the actual documents (they will be reviewed by a human admin), but you assess the overall completeness and risk profile of the submission. Respond ONLY with valid JSON: { "score": "PASS"|"REVIEW"|"FAIL", "note": string }. PASS = all required documents present, declarations consistent. REVIEW = documents present but some declarations need human attention. FAIL = missing critical documents or contradictory declarations.',
     });
