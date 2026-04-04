@@ -12,6 +12,12 @@ const routeAccessRules: Record<string, string[]> = {
 // Define protected route prefixes
 const protectedPrefixes = ["/student", "/landlord", "/admin"];
 
+// Landlord pages that are accessible even when UNVERIFIED
+const LANDLORD_UNVERIFIED_ALLOWED = [
+  "/landlord/verification",
+  "/landlord/profile",
+];
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -38,20 +44,29 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Get user role from token
   const userRole = token.role as string;
+  const verificationStatus = token.verificationStatus as string | undefined;
 
   // Check if user has access to the requested route
   for (const [route, allowedRoles] of Object.entries(routeAccessRules)) {
     if (pathname.startsWith(route)) {
       if (!allowedRoles.includes(userRole)) {
-        // Wrong role — show a clear forbidden page, never silently redirect
         return NextResponse.redirect(new URL("/unauthorized", request.url));
       }
     }
   }
 
-  // User has access, allow the request
+  // Gate: UNVERIFIED landlords must complete verification before accessing the dashboard
+  const isUnverifiedLandlord =
+    userRole === "LANDLORD" && verificationStatus === "UNVERIFIED";
+  const isOnAllowedUnverifiedPage = LANDLORD_UNVERIFIED_ALLOWED.some((p) =>
+    pathname.startsWith(p)
+  );
+
+  if (isUnverifiedLandlord && !isOnAllowedUnverifiedPage) {
+    return NextResponse.redirect(new URL("/landlord/verification", request.url));
+  }
+
   return NextResponse.next();
 }
 

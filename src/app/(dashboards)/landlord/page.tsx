@@ -182,12 +182,20 @@ export default function LandlordDashboard() {
           <h1 className="text-3xl font-bold text-navy">Landlord Dashboard</h1>
           <p className="text-gray-600 mt-1">Manage your listings and tenant requests</p>
         </div>
-        <Link
-          href="/landlord/add-property"
-          className="bg-[#E67E22] hover:bg-[#D35400] text-white px-6 py-3 rounded-lg font-semibold transition-colors"
-        >
-          Add Property
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/landlord/profile"
+            className="border border-gray-300 hover:border-gray-400 text-gray-700 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors"
+          >
+            My Profile
+          </Link>
+          <Link
+            href="/landlord/add-property"
+            className="bg-[#E67E22] hover:bg-[#D35400] text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+          >
+            Add Property
+          </Link>
+        </div>
       </div>
 
       <VerificationBanner status={verificationStatus} />

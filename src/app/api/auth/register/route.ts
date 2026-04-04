@@ -79,7 +79,8 @@ export async function POST(request: Request) {
         email: normalizedEmail,
         password: hashedPassword,
         role,
-        verificationStatus: 'VERIFIED',
+        // Landlords start UNVERIFIED and must submit documents before being trusted
+        verificationStatus: role === 'LANDLORD' ? 'UNVERIFIED' : 'VERIFIED',
       },
       select: {
         id:                 true,
