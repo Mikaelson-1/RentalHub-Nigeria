@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { SCHOOL_LOCATION_KEYWORDS } from "@/lib/schools";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -15,29 +16,32 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "Admin access required." }, { status: 403 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const school = searchParams.get("school");
+
+    const locationFilter =
+      school && SCHOOL_LOCATION_KEYWORDS[school]
+        ? {
+            property: {
+              location: {
+                OR: SCHOOL_LOCATION_KEYWORDS[school].map((kw) => ({
+                  name: { contains: kw, mode: "insensitive" as const },
+                })),
+              },
+            },
+          }
+        : {};
+
     const bookings = await prisma.booking.findMany({
+      where: locationFilter,
       include: {
-        student: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
+        student: { select: { name: true, email: true } },
         property: {
           select: {
             id: true,
             title: true,
-            location: {
-              select: {
-                name: true,
-              },
-            },
-            landlord: {
-              select: {
-                name: true,
-                email: true,
-              },
-            },
+            location: { select: { name: true } },
+            landlord: { select: { name: true, email: true } },
           },
         },
       },

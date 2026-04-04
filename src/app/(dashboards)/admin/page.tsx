@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { SCHOOL_OPTIONS } from "@/lib/schools";
 
 interface AdminSummary {
   totalProperties: number;
@@ -101,6 +102,7 @@ const initialSummary: AdminSummary = {
 };
 
 export default function AdminDashboard() {
+  const [selectedSchool, setSelectedSchool] = useState<string>("ALL");
   const [summary, setSummary] = useState<AdminSummary>(initialSummary);
   const [allProperties, setAllProperties] = useState<PropertyItem[]>([]);
   const [users, setUsers] = useState<AdminUserItem[]>([]);
@@ -111,9 +113,12 @@ export default function AdminDashboard() {
   const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState("");
 
-  const loadAdminData = useCallback(async () => {
+  const loadAdminData = useCallback(async (school: string) => {
     setIsLoading(true);
     setError("");
+
+    const schoolParam = school !== "ALL" ? `&school=${encodeURIComponent(school)}` : "";
+    const propSchoolParam = school !== "ALL" ? `&school=${encodeURIComponent(school)}` : "";
 
     try {
       const [
@@ -124,12 +129,12 @@ export default function AdminDashboard() {
         usersResponse,
         bookingsResponse,
       ] = await Promise.all([
-        fetch("/api/admin/summary", { cache: "no-store" }),
-        fetch("/api/properties?status=PENDING&pageSize=100", { cache: "no-store" }),
-        fetch("/api/properties?status=APPROVED&pageSize=100", { cache: "no-store" }),
-        fetch("/api/properties?status=REJECTED&pageSize=100", { cache: "no-store" }),
+        fetch(`/api/admin/summary?t=${Date.now()}${schoolParam}`, { cache: "no-store" }),
+        fetch(`/api/properties?status=PENDING&pageSize=100${propSchoolParam}`, { cache: "no-store" }),
+        fetch(`/api/properties?status=APPROVED&pageSize=100${propSchoolParam}`, { cache: "no-store" }),
+        fetch(`/api/properties?status=REJECTED&pageSize=100${propSchoolParam}`, { cache: "no-store" }),
         fetch("/api/admin/users", { cache: "no-store" }),
-        fetch("/api/admin/bookings", { cache: "no-store" }),
+        fetch(`/api/admin/bookings?t=${Date.now()}${schoolParam}`, { cache: "no-store" }),
       ]);
 
       const summaryPayload = (await summaryResponse.json()) as AdminSummaryResponse;
@@ -176,8 +181,8 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    loadAdminData();
-  }, [loadAdminData]);
+    loadAdminData(selectedSchool);
+  }, [loadAdminData, selectedSchool]);
 
   const formatPrice = (price: number | string) =>
     new Intl.NumberFormat("en-NG", {
@@ -213,7 +218,7 @@ export default function AdminDashboard() {
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || `Failed to ${status.toLowerCase()} listing.`);
       }
-      await loadAdminData();
+      await loadAdminData(selectedSchool);
     } catch (statusError) {
       setError(statusError instanceof Error ? statusError.message : "Failed to update status.");
     } finally {
@@ -223,10 +228,50 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-navy">Admin Dashboard</h1>
-        <p className="text-gray-600 mt-1">Manage properties, users, and platform settings</p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-navy">Admin Dashboard</h1>
+          <p className="text-gray-600 mt-1">Manage properties, users, and platform settings</p>
+        </div>
+
+        {/* School selector */}
+        <div className="flex items-center gap-2">
+          <label htmlFor="school-select" className="text-sm font-medium text-gray-600 whitespace-nowrap">
+            Viewing school:
+          </label>
+          <select
+            id="school-select"
+            value={selectedSchool}
+            onChange={(e) => setSelectedSchool(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#192F59]/30 min-w-[220px]"
+          >
+            <option value="ALL">All Schools</option>
+            {SCHOOL_OPTIONS.map((school) => (
+              <option key={school.value} value={school.value}>
+                {school.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
+
+      {selectedSchool !== "ALL" && (
+        <div className="mb-5 flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 bg-[#192F59]/10 text-[#192F59] text-sm font-medium px-3 py-1.5 rounded-full">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            {selectedSchool}
+          </span>
+          <button
+            onClick={() => setSelectedSchool("ALL")}
+            className="text-xs text-gray-500 hover:text-gray-700 underline"
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
 
       {error && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
