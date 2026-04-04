@@ -45,18 +45,8 @@ export async function middleware(request: NextRequest) {
   for (const [route, allowedRoles] of Object.entries(routeAccessRules)) {
     if (pathname.startsWith(route)) {
       if (!allowedRoles.includes(userRole)) {
-        // User doesn't have permission for this route
-        // Redirect to their appropriate dashboard or unauthorized page
-        if (userRole === "STUDENT") {
-          return NextResponse.redirect(new URL("/student", request.url));
-        } else if (userRole === "LANDLORD") {
-          return NextResponse.redirect(new URL("/landlord", request.url));
-        } else if (userRole === "ADMIN") {
-          return NextResponse.redirect(new URL("/admin", request.url));
-        }
-
-        // Fallback to login if role is unknown
-        return NextResponse.redirect(new URL("/login", request.url));
+        // Wrong role — show a clear forbidden page, never silently redirect
+        return NextResponse.redirect(new URL("/unauthorized", request.url));
       }
     }
   }
