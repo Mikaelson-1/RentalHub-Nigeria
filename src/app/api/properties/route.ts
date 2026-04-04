@@ -64,10 +64,10 @@ export async function GET(request: Request) {
       prisma.property.findMany({
         where,
         include: {
-          landlord: { select: { id: true, name: true, email: true, verificationStatus: true } },
-          reviewedBy: { select: { id: true, name: true, email: true } },
-          location: true,
-          _count:   { select: { bookings: true } },
+          landlord:   { select: { id: true, name: true, email: true, verificationStatus: true } },
+          ...(isAdmin && { reviewedBy: { select: { id: true, name: true, email: true } } }),
+          location:   true,
+          _count:     { select: { bookings: true } },
         },
         orderBy: { [sortBy]: sortOrder },
         skip:    (page - 1) * pageSize,
