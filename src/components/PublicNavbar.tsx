@@ -22,7 +22,8 @@ export default function PublicNavbar() {
   const isAuthPage =
     pathname === "/login" ||
     pathname === "/register" ||
-    pathname === "/forgot-password";
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password";
   const showDashboardActions = !isHomePage && !isAuthPage && isAuthenticated;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 

@@ -7,13 +7,11 @@
  *   1. Perceptual-hash duplicate check  — rejects images already used on the platform
  *   2. AI / suspicious-image heuristics — rejects likely AI-generated or stock photos
  *
- * ⚠️  STORAGE WARNING — READ BEFORE DEPLOYING TO PRODUCTION
- * Files are written to `public/uploads/` on the local filesystem.
- * Replace the `writeFile` block with Cloudinary / Vercel Blob / S3 before going live.
+ * Storage: Vercel Blob (requires BLOB_READ_WRITE_TOKEN env var)
+ * Set up: Vercel dashboard → Storage → Blob → Create store → Connect to project
  */
 
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
+import { put } from "@vercel/blob";
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -129,14 +127,17 @@ export async function POST(request: Request) {
       });
     }
 
-    // ── Write file to disk ──────────────────────────────────────────────────
-    const ext        = path.extname(file.name) || "";
-    const finalName  = `${Date.now()}-${randomUUID()}-${sanitizeFileName(path.basename(file.name, ext))}${ext}`;
-    const folder     = path.join(process.cwd(), "public", "uploads", category);
-    await mkdir(folder, { recursive: true });
-    await writeFile(path.join(folder, finalName), bytes);
+    // ── Upload to Vercel Blob ───────────────────────────────────────────────
+    const ext        = file.name.includes(".") ? file.name.slice(file.name.lastIndexOf(".")) : "";
+    const finalName  = `${Date.now()}-${randomUUID()}-${sanitizeFileName(file.name.replace(/\.[^.]+$/, ""))}${ext}`;
+    const blobPath   = `uploads/${category}/${finalName}`;
 
-    const url = `/uploads/${category}/${finalName}`;
+    const blob = await put(blobPath, bytes, {
+      access: "public",
+      contentType: file.type,
+    });
+
+    const url = blob.url;
 
     // Update the placeholder hash record with the real URL
     if (category === "image") {
@@ -151,7 +152,11 @@ export async function POST(request: Request) {
       data: { name: file.name, type: category, mimeType: file.type, size: file.size, url },
     });
   } catch (error) {
-    console.error("[UPLOAD POST ERROR]", error);
-    return NextResponse.json({ success: false, error: "Failed to upload file." }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[UPLOAD POST ERROR]", msg);
+    return NextResponse.json(
+      { success: false, error: "Failed to upload file.", detail: msg },
+      { status: 500 },
+    );
   }
 }

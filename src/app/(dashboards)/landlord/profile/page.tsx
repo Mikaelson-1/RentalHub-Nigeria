@@ -109,12 +109,7 @@ export default function LandlordProfilePage() {
       const patchRes = await fetch("/api/landlord/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: profile?.name ?? "",
-          email: profile?.email ?? "",
-          phoneNumber: profile?.phoneNumber ?? "",
-          avatarUrl: url,
-        }),
+        body: JSON.stringify({ avatarUrl: url }),
       });
       const patchJson = await patchRes.json();
       if (!patchRes.ok || !patchJson.success) throw new Error(patchJson.error || "Failed to save avatar");

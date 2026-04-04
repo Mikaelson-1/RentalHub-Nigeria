@@ -41,8 +41,9 @@ export async function GET() {
 
     return NextResponse.json({ success: true, data: user });
   } catch (error) {
-    console.error("[PROFILE GET ERROR]", error);
-    return NextResponse.json({ success: false, error: "Failed to load profile." }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[PROFILE GET ERROR]", msg);
+    return NextResponse.json({ success: false, error: "Failed to load profile.", detail: msg }, { status: 500 });
   }
 }
 
@@ -56,6 +57,17 @@ export async function PATCH(request: Request) {
     const body = await request.json();
     const { name, email, phoneNumber, avatarUrl } = body;
 
+    // Avatar-only update — skip name/email validation, just update the URL
+    if (avatarUrl !== undefined && !name && !email && phoneNumber === undefined) {
+      const updated = await prisma.user.update({
+        where: { id: session.user.id },
+        data: { avatarUrl: avatarUrl || null },
+        select: { id: true, name: true, email: true, phoneNumber: true, avatarUrl: true, role: true, verificationStatus: true, createdAt: true },
+      });
+      return NextResponse.json({ success: true, data: updated });
+    }
+
+    // Full profile update — validate name and email
     if (!name?.trim()) {
       return NextResponse.json({ success: false, error: "Name is required." }, { status: 400 });
     }
