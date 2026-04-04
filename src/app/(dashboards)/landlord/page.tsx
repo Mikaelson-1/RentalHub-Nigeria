@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ShieldAlert, ShieldCheck, ShieldX, Clock } from "lucide-react";
+import { ShieldAlert, ShieldX, Clock } from "lucide-react";
 
 interface Listing {
   id: string;

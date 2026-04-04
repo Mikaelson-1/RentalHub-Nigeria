@@ -327,7 +327,7 @@ export default function LandlordProfilePage() {
         {profile?.verificationNote && (
           <div className="mt-4 bg-red-50 border border-red-100 rounded-xl p-4 text-sm text-red-700">
             <p className="font-medium mb-1">Rejection note from admin:</p>
-            <p className="italic">"{profile.verificationNote}"</p>
+            <p className="italic">&ldquo;{profile.verificationNote}&rdquo;</p>
           </div>
         )}
 

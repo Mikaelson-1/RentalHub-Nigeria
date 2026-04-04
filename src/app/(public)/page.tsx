@@ -121,7 +121,7 @@ const FAQS = [
 // ── Page ──────────────────────────────────────────────────────
 
 export default async function HomePage() {
-  const { stats, featured } = await getPageData();
+  const { featured } = await getPageData();
 
   return (
     <div className="min-h-screen bg-[#fafafa] overflow-x-hidden">
@@ -220,7 +220,7 @@ export default async function HomePage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {featured.map((p, i) => (
+              {featured.map((p) => (
                 <div key={p.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex flex-col">
                   <div className="relative h-40 bg-gray-100">
                     <Image
