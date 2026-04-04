@@ -109,7 +109,7 @@ Monthly breakdown: ${monthlyBookings.map((m) => `${m.month}: ${m.count}`).join("
 `.trim();
 
     const model = gemini.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash",
       systemInstruction:
         "You are a housing demand analyst for a Nigerian university student housing platform. Based on booking trends, generate a brief demand forecast and actionable recommendations for the admin. Be specific about patterns you see. Keep it to 3-5 sentences.",
     });

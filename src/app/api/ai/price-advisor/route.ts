@@ -65,7 +65,7 @@ export async function GET(request: Request) {
     const statsText = `Property type: ${propertyType || "general"}\nListings analysed: ${prices.length}\nMin: ₦${min.toLocaleString("en-NG")}\nMax: ₦${max.toLocaleString("en-NG")}\nAverage: ₦${average.toLocaleString("en-NG")}\nMedian: ₦${median.toLocaleString("en-NG")}`;
 
     const model = gemini.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash",
       systemInstruction:
         "You are a rental pricing advisor for Nigerian student housing. Given market statistics, write a friendly 1-2 sentence insight to help a landlord price their property competitively. Be concise and specific. Mention the median as the sweet spot.",
     });
