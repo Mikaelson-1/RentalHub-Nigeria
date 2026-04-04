@@ -7,11 +7,11 @@ import FAQAccordion from "@/components/FAQAccordion";
 import FloatingCTA from "@/components/FloatingCTA";
 
 export const metadata: Metadata = {
-  title: "RentalHub NG - Verified Student Housing Near BOUESTI",
+  title: "Verified Student Housing Near BOUESTI",
   description:
     "Browse verified off-campus apartments, self-contains, and rooms near BOUESTI. Book directly with trusted landlords — no agent fees.",
   openGraph: {
-    title: "RentalHub NG - Verified Student Housing Near BOUESTI",
+    title: "RentalHub NG — Verified Student Housing Near BOUESTI",
     description:
       "Browse verified off-campus apartments, self-contains, and rooms near BOUESTI. Book directly with trusted landlords — no agent fees.",
     url: "https://rentalhub.ng",
