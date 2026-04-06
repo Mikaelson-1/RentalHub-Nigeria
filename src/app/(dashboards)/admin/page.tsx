@@ -136,6 +136,9 @@ export default function AdminDashboard() {
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [forecastLoading, setForecastLoading] = useState(false);
   const [verificationLandlords, setVerificationLandlords] = useState<VerificationLandlord[]>([]);
+  const [verificationUpdatingId, setVerificationUpdatingId] = useState("");
+  const [verificationError, setVerificationError] = useState("");
+  const [verificationSuccess, setVerificationSuccess] = useState("");
 
   const loadAdminData = useCallback(async (school: string) => {
     setIsLoading(true);
@@ -251,6 +254,29 @@ export default function AdminDashboard() {
       setError(statusError instanceof Error ? statusError.message : "Failed to update status.");
     } finally {
       setUpdatingId("");
+    }
+  };
+
+  const updateVerification = async (landlordId: string, action: "APPROVE" | "REJECT" | "SUSPEND" | "UNSUSPEND" | "RESET", note?: string) => {
+    setVerificationUpdatingId(landlordId);
+    setVerificationError("");
+    setVerificationSuccess("");
+    try {
+      const response = await fetch("/api/admin/landlords", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ landlordId, action, note }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Failed to update verification.");
+      }
+      setVerificationSuccess(payload.message ?? "Done.");
+      await loadAdminData(selectedSchool);
+    } catch (e) {
+      setVerificationError(e instanceof Error ? e.message : "Failed to update verification.");
+    } finally {
+      setVerificationUpdatingId("");
     }
   };
 
@@ -554,33 +580,34 @@ export default function AdminDashboard() {
                         <td className="py-4 px-4 text-gray-700">{new Date(user.createdAt).toLocaleDateString()}</td>
                         <td className="py-4 px-4">
                           {user.role === "LANDLORD" && (
-                            user.verificationStatus === "SUSPENDED" ? (
-                              <button
-                                onClick={async () => {
-                                  if (!confirm(`Unsuspend ${user.name}?`)) return;
-                                  await fetch("/api/admin/landlords", {
-                                    method: "PATCH",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ userId: user.id, action: "UNSUSPEND" }),
-                                  });
-                                  await loadAdminData(selectedSchool);
-                                }}
-                                className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded-md font-medium"
-                              >Unsuspend</button>
-                            ) : (
-                              <button
-                                onClick={async () => {
-                                  if (!confirm(`Suspend ${user.name}?`)) return;
-                                  await fetch("/api/admin/landlords", {
-                                    method: "PATCH",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ userId: user.id, action: "SUSPEND" }),
-                                  });
-                                  await loadAdminData(selectedSchool);
-                                }}
-                                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-md font-medium"
-                              >Suspend</button>
-                            )
+                            <div className="flex flex-wrap gap-1">
+                              {user.verificationStatus === "SUSPENDED" ? (
+                                <button
+                                  onClick={async () => {
+                                    if (!confirm(`Unsuspend ${user.name}?`)) return;
+                                    await updateVerification(user.id, "UNSUSPEND");
+                                  }}
+                                  className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded-md font-medium"
+                                >Unsuspend</button>
+                              ) : (
+                                <button
+                                  onClick={async () => {
+                                    if (!confirm(`Suspend ${user.name}?`)) return;
+                                    await updateVerification(user.id, "SUSPEND");
+                                  }}
+                                  className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-md font-medium"
+                                >Suspend</button>
+                              )}
+                              {user.verificationStatus === "VERIFIED" && (
+                                <button
+                                  onClick={async () => {
+                                    if (!confirm(`Reset ${user.name}'s verification? They must re-submit documents.`)) return;
+                                    await updateVerification(user.id, "RESET");
+                                  }}
+                                  className="text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 px-2 py-1 rounded-md font-medium"
+                                >Reset</button>
+                              )}
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -644,100 +671,138 @@ export default function AdminDashboard() {
             </div>
           ) : activePanel === "verifications" ? (
             <div className="space-y-4">
+              {verificationError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{verificationError}</div>
+              )}
+              {verificationSuccess && (
+                <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{verificationSuccess}</div>
+              )}
               {verificationLandlords.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-gray-500 text-lg">No pending verifications</p>
                   <p className="text-gray-400 text-sm mt-1">All landlord submissions have been reviewed</p>
                 </div>
               ) : (
-                verificationLandlords.map((landlord) => (
-                  <div key={landlord.id} className="border border-gray-200 rounded-lg p-5">
-                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold text-navy">{landlord.name}</h3>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            landlord.aiPreScreenScore === "PASS" ? "bg-green-100 text-green-700" :
-                            landlord.aiPreScreenScore === "FAIL" ? "bg-red-100 text-red-700" :
-                            landlord.aiPreScreenScore === "REVIEW" ? "bg-yellow-100 text-yellow-700" :
-                            "bg-gray-100 text-gray-500"
-                          }`}>
-                            {landlord.aiPreScreenScore ? `AI: ${landlord.aiPreScreenScore}` : "AI: Not screened"}
-                          </span>
+                verificationLandlords.map((landlord) => {
+                  const isUpdating = verificationUpdatingId === landlord.id;
+                  const hasDocuments = !!(landlord.governmentIdUrl || landlord.selfieUrl || landlord.ownershipProofUrl);
+                  const isVerifiedWithoutDocs = landlord.verificationStatus === "VERIFIED" && !hasDocuments;
+                  return (
+                    <div key={landlord.id} className={`border rounded-lg p-5 ${isVerifiedWithoutDocs ? "border-amber-300 bg-amber-50" : "border-gray-200"}`}>
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2 flex-wrap">
+                            <h3 className="font-semibold text-navy">{landlord.name}</h3>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                              landlord.verificationStatus === "VERIFIED"   ? "bg-green-100 text-green-700" :
+                              landlord.verificationStatus === "UNDER_REVIEW" ? "bg-blue-100 text-blue-700" :
+                              landlord.verificationStatus === "REJECTED"   ? "bg-red-100 text-red-700" :
+                              landlord.verificationStatus === "SUSPENDED"  ? "bg-gray-200 text-gray-600" :
+                              "bg-yellow-100 text-yellow-700"
+                            }`}>
+                              {landlord.verificationStatus}
+                            </span>
+                            {landlord.aiPreScreenScore && (
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                landlord.aiPreScreenScore === "PASS"   ? "bg-green-100 text-green-700" :
+                                landlord.aiPreScreenScore === "FAIL"   ? "bg-red-100 text-red-700" :
+                                landlord.aiPreScreenScore === "REVIEW" ? "bg-yellow-100 text-yellow-700" :
+                                "bg-gray-100 text-gray-500"
+                              }`}>
+                                AI: {landlord.aiPreScreenScore}
+                              </span>
+                            )}
+                            {isVerifiedWithoutDocs && (
+                              <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">
+                                ⚠ Verified without documents
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500">{landlord.email}</p>
+                          {landlord.aiPreScreenNote && (
+                            <p className="text-xs text-gray-500 mt-1 italic">&quot;{landlord.aiPreScreenNote}&quot;</p>
+                          )}
+                          {/* Document links — clickable to review */}
+                          <div className="flex flex-wrap gap-3 mt-3">
+                            {landlord.governmentIdUrl ? (
+                              <a href={landlord.governmentIdUrl} target="_blank" rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 underline font-medium">
+                                📄 View Gov ID
+                              </a>
+                            ) : (
+                              <span className="text-xs text-gray-400">✗ Gov ID not uploaded</span>
+                            )}
+                            {landlord.selfieUrl ? (
+                              <a href={landlord.selfieUrl} target="_blank" rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 underline font-medium">
+                                🤳 View Selfie
+                              </a>
+                            ) : (
+                              <span className="text-xs text-gray-400">✗ Selfie not uploaded</span>
+                            )}
+                            {landlord.ownershipProofUrl ? (
+                              <a href={landlord.ownershipProofUrl} target="_blank" rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 underline font-medium">
+                                🏠 View Ownership Proof
+                              </a>
+                            ) : (
+                              <span className="text-xs text-gray-400">✗ Ownership proof not uploaded</span>
+                            )}
+                          </div>
+                          {landlord.verificationSubmittedAt && (
+                            <p className="text-xs text-gray-400 mt-2">Submitted: {new Date(landlord.verificationSubmittedAt).toLocaleDateString()}</p>
+                          )}
                         </div>
-                        <p className="text-sm text-gray-500">{landlord.email}</p>
-                        {landlord.aiPreScreenNote && (
-                          <p className="text-xs text-gray-500 mt-1 italic">&quot;{landlord.aiPreScreenNote}&quot;</p>
-                        )}
-                        <div className="flex gap-3 mt-2 text-xs text-gray-400">
-                          <span>{landlord.governmentIdUrl ? "✓ Gov ID" : "✗ Gov ID"}</span>
-                          <span>{landlord.selfieUrl ? "✓ Selfie" : "✗ Selfie"}</span>
-                          <span>{landlord.ownershipProofUrl ? "✓ Ownership Proof" : "✗ Ownership Proof"}</span>
+                        <div className="flex flex-wrap gap-2 shrink-0">
+                          {landlord.verificationStatus !== "SUSPENDED" && landlord.verificationStatus !== "VERIFIED" && (
+                            <button
+                              disabled={isUpdating}
+                              onClick={() => updateVerification(landlord.id, "APPROVE")}
+                              className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                            >{isUpdating ? "…" : "Approve"}</button>
+                          )}
+                          {landlord.verificationStatus !== "SUSPENDED" && landlord.verificationStatus !== "VERIFIED" && (
+                            <button
+                              disabled={isUpdating}
+                              onClick={async () => {
+                                const note = prompt("Rejection reason (required — will be emailed to landlord):");
+                                if (!note?.trim()) return;
+                                await updateVerification(landlord.id, "REJECT", note.trim());
+                              }}
+                              className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                            >{isUpdating ? "…" : "Reject"}</button>
+                          )}
+                          {isVerifiedWithoutDocs && (
+                            <button
+                              disabled={isUpdating}
+                              onClick={async () => {
+                                if (!confirm(`Reset ${landlord.name}'s verification? They will need to re-submit documents.`)) return;
+                                await updateVerification(landlord.id, "RESET");
+                              }}
+                              className="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                            >{isUpdating ? "…" : "Reset Verification"}</button>
+                          )}
+                          {landlord.verificationStatus === "SUSPENDED" ? (
+                            <button
+                              disabled={isUpdating}
+                              onClick={() => updateVerification(landlord.id, "UNSUSPEND")}
+                              className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                            >{isUpdating ? "…" : "Unsuspend"}</button>
+                          ) : (
+                            <button
+                              disabled={isUpdating}
+                              onClick={async () => {
+                                if (!confirm(`Suspend ${landlord.name}? This will prevent them from listing properties.`)) return;
+                                await updateVerification(landlord.id, "SUSPEND");
+                              }}
+                              className="bg-gray-700 hover:bg-gray-800 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                            >{isUpdating ? "…" : "Suspend"}</button>
+                          )}
                         </div>
-                        {landlord.verificationSubmittedAt && (
-                          <p className="text-xs text-gray-400 mt-1">Submitted: {new Date(landlord.verificationSubmittedAt).toLocaleDateString()}</p>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {landlord.verificationStatus !== "SUSPENDED" && (
-                          <button
-                            onClick={async () => {
-                              await fetch("/api/admin/landlords", {
-                                method: "PATCH",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ userId: landlord.id, action: "APPROVE" }),
-                              });
-                              await loadAdminData(selectedSchool);
-                            }}
-                            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
-                          >Approve</button>
-                        )}
-                        {landlord.verificationStatus !== "SUSPENDED" && (
-                          <button
-                            onClick={async () => {
-                              const note = prompt("Rejection reason (required):");
-                              if (!note) return;
-                              await fetch("/api/admin/landlords", {
-                                method: "PATCH",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ userId: landlord.id, action: "REJECT", note }),
-                              });
-                              await loadAdminData(selectedSchool);
-                            }}
-                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
-                          >Reject</button>
-                        )}
-                        {landlord.verificationStatus === "SUSPENDED" ? (
-                          <button
-                            onClick={async () => {
-                              if (!confirm(`Unsuspend ${landlord.name}?`)) return;
-                              await fetch("/api/admin/landlords", {
-                                method: "PATCH",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ userId: landlord.id, action: "UNSUSPEND" }),
-                              });
-                              await loadAdminData(selectedSchool);
-                            }}
-                            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
-                          >Unsuspend</button>
-                        ) : (
-                          <button
-                            onClick={async () => {
-                              if (!confirm(`Suspend ${landlord.name}? This will prevent them from listing properties.`)) return;
-                              await fetch("/api/admin/landlords", {
-                                method: "PATCH",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ userId: landlord.id, action: "SUSPEND" }),
-                              });
-                              await loadAdminData(selectedSchool);
-                            }}
-                            className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium"
-                          >Suspend</button>
-                        )}
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           ) : activePanel === "forecast" ? (

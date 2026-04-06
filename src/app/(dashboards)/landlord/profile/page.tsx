@@ -399,17 +399,22 @@ export default function LandlordProfilePage() {
 
         {profile?.verificationStatus !== "VERIFIED" && (
           <div className="mt-4">
-            <Link
-              href="/landlord/verification"
-              className="inline-flex items-center gap-2 bg-[#E67E22] hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
-            >
-              <ShieldCheck className="w-4 h-4" />
-              {profile?.verificationStatus === "UNDER_REVIEW"
-                ? "View Verification Status"
-                : profile?.verificationStatus === "REJECTED"
-                ? "Resubmit Documents"
-                : "Complete Verification"}
-            </Link>
+            {profile?.verificationStatus === "UNDER_REVIEW" ? (
+              <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-700 px-5 py-2.5 rounded-xl text-sm font-medium">
+                <Clock className="w-4 h-4" />
+                Under Review — we&apos;ll email you within 24–48 hours
+              </div>
+            ) : (
+              <Link
+                href="/landlord/verification"
+                className="inline-flex items-center gap-2 bg-[#E67E22] hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                {profile?.verificationStatus === "REJECTED"
+                  ? "Resubmit Documents"
+                  : "Complete Verification"}
+              </Link>
+            )}
           </div>
         )}
       </div>

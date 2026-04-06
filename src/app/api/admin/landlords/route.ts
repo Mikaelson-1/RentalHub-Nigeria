@@ -19,7 +19,11 @@ export async function GET() {
     const landlords = await prisma.user.findMany({
       where: {
         role: "LANDLORD",
-        verificationStatus: { in: ["UNVERIFIED", "UNDER_REVIEW", "REJECTED", "SUSPENDED"] },
+        OR: [
+          { verificationStatus: { in: ["UNVERIFIED", "UNDER_REVIEW", "REJECTED", "SUSPENDED"] } },
+          // Also return VERIFIED landlords who have no documents (verified without proper review)
+          { verificationStatus: "VERIFIED", governmentIdUrl: null },
+        ],
       },
       select: {
         id:                      true,
@@ -61,9 +65,9 @@ export async function PATCH(request: Request) {
     const action: string = body.action;
     const note: string | undefined = body.note;
 
-    if (!landlordId || !["APPROVE", "REJECT", "SUSPEND", "UNSUSPEND"].includes(action)) {
+    if (!landlordId || !["APPROVE", "REJECT", "SUSPEND", "UNSUSPEND", "RESET"].includes(action)) {
       return NextResponse.json(
-        { success: false, error: "landlordId (or userId) and action (APPROVE | REJECT | SUSPEND | UNSUSPEND) are required." },
+        { success: false, error: "landlordId (or userId) and action (APPROVE | REJECT | SUSPEND | UNSUSPEND | RESET) are required." },
         { status: 400 },
       );
     }
@@ -76,17 +80,27 @@ export async function PATCH(request: Request) {
     }
 
     const statusMap: Record<string, string> = {
-      APPROVE: "VERIFIED",
-      REJECT: "REJECTED",
-      SUSPEND: "SUSPENDED",
+      APPROVE:   "VERIFIED",
+      REJECT:    "REJECTED",
+      SUSPEND:   "SUSPENDED",
       UNSUSPEND: "VERIFIED",
+      RESET:     "UNVERIFIED",
     };
 
     const updated = await prisma.user.update({
       where: { id: landlordId },
       data:  {
-        verificationStatus: statusMap[action] as "VERIFIED" | "REJECTED" | "SUSPENDED",
-        verificationNote:   action === "REJECT" ? (note ?? "").trim() : null,
+        verificationStatus:      statusMap[action] as "VERIFIED" | "REJECTED" | "SUSPENDED" | "UNVERIFIED",
+        verificationNote:        action === "REJECT" ? (note ?? "").trim() : null,
+        // RESET clears all submitted documents so landlord must re-submit
+        ...(action === "RESET" ? {
+          governmentIdUrl:         null,
+          selfieUrl:               null,
+          ownershipProofUrl:       null,
+          verificationSubmittedAt: null,
+          aiPreScreenScore:        null,
+          aiPreScreenNote:         null,
+        } : {}),
       },
       select: { id: true, name: true, email: true, verificationStatus: true },
     });
@@ -107,6 +121,8 @@ export async function PATCH(request: Request) {
         ? `${updated.name} has been verified.`
         : action === "SUSPEND"
         ? `${updated.name} has been suspended.`
+        : action === "RESET"
+        ? `${updated.name}'s verification has been reset. They must re-submit documents.`
         : `${updated.name}'s verification was rejected.`,
     });
   } catch (error) {
