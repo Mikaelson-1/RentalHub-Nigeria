@@ -79,6 +79,20 @@ export async function PATCH(request: Request) {
       );
     }
 
+    // Guard: cannot approve a landlord who hasn't submitted any documents
+    if (action === "APPROVE") {
+      const candidate = await prisma.user.findUnique({
+        where: { id: landlordId },
+        select: { governmentIdUrl: true, selfieUrl: true, ownershipProofUrl: true },
+      });
+      if (!candidate?.governmentIdUrl) {
+        return NextResponse.json(
+          { success: false, error: "Cannot approve: this landlord has not submitted a government ID. They must complete the verification form first." },
+          { status: 422 },
+        );
+      }
+    }
+
     const statusMap: Record<string, string> = {
       APPROVE:   "VERIFIED",
       REJECT:    "REJECTED",
