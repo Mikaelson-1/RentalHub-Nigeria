@@ -14,6 +14,7 @@ import {
   sendBookingCancelledToStudent,
   sendBookingCancelledToLandlord,
 } from '@/lib/email';
+import { notifyRole, notifyUser } from '@/lib/notifications';
 
 export async function GET() {
   try {
@@ -120,6 +121,30 @@ export async function POST(request: Request) {
       bookingId:        booking.id,
     }).catch((err) => console.error('[email] booking request notification failed:', err));
 
+    await Promise.all([
+      notifyUser({
+        userId: booking.property.landlord.id,
+        type: "BOOKING",
+        title: "New booking request",
+        message: `${booking.student.name} requested to book ${booking.property.title}.`,
+        link: "/landlord",
+      }),
+      notifyUser({
+        userId: booking.student.id,
+        type: "BOOKING",
+        title: "Booking request submitted",
+        message: `Your request for ${booking.property.title} was sent to the landlord.`,
+        link: "/student",
+      }),
+      notifyRole(
+        "ADMIN",
+        "New booking request",
+        `${booking.student.name} requested ${booking.property.title}.`,
+        "BOOKING",
+        "/admin",
+      ),
+    ]);
+
     return NextResponse.json(
       { success: true, data: booking, message: 'Booking request submitted successfully.' },
       { status: 201 },
@@ -208,6 +233,14 @@ export async function PATCH(request: Request) {
         propertyLocation: locationName,
         landlordName: property.landlord.name,
       }).catch(console.error);
+
+      await notifyUser({
+        userId: student.id,
+        type: "BOOKING",
+        title: "Booking confirmed",
+        message: `${property.title} was confirmed. Complete payment within 48 hours.`,
+        link: `/student/bookings/${updatedBooking.id}`,
+      });
     }
 
     if (status === "CANCELLED") {
@@ -227,6 +260,22 @@ export async function PATCH(request: Request) {
           propertyTitle: property.title,
           propertyLocation: locationName,
         }).catch(console.error);
+
+        await notifyUser({
+          userId: property.landlord.id,
+          type: "BOOKING",
+          title: "Booking cancelled by student",
+          message: `${student.name} cancelled booking for ${property.title}.`,
+          link: "/landlord",
+        });
+      } else {
+        await notifyUser({
+          userId: student.id,
+          type: "BOOKING",
+          title: "Booking cancelled by landlord",
+          message: `Your booking for ${property.title} was cancelled by the landlord.`,
+          link: "/student",
+        });
       }
     }
 

@@ -4,8 +4,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Search, Bell, Plus, LogOut, User } from "lucide-react";
+import { Search, Plus, LogOut, User } from "lucide-react";
 import { useState } from "react";
+import NotificationBell from "@/components/NotificationBell";
 
 export default function DashboardNavbar() {
   const { data: session } = useSession();
@@ -73,14 +74,7 @@ export default function DashboardNavbar() {
 
             {/* Action Icons */}
             <div className="flex items-center gap-1">
-              {/* Bell — links to bookings */}
-              <Link
-                href={session?.user?.role === "STUDENT" ? "/student?tab=bookings" : session?.user?.role === "LANDLORD" ? "/landlord" : "/admin"}
-                className="relative p-2 text-gray-600 hover:text-orange-500 transition-colors rounded-full hover:bg-gray-100"
-                title="Bookings / Notifications"
-              >
-                <Bell className="w-5 h-5" />
-              </Link>
+              <NotificationBell />
             </div>
 
             {/* User Profile */}

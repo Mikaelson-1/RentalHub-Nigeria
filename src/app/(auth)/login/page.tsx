@@ -29,7 +29,12 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError("Invalid email or password");
+        if (result.error.includes("EMAIL_NOT_VERIFIED")) {
+          setError("Please verify your email first. We sent you an OTP during registration.");
+          router.push(`/verify-email?email=${encodeURIComponent(formData.email.toLowerCase().trim())}`);
+        } else {
+          setError("Invalid email or password");
+        }
         setIsLoading(false);
         return;
       }

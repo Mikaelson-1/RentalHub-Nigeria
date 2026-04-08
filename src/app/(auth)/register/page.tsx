@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -18,16 +17,13 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [callbackUrl, setCallbackUrl] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roleParam = params.get("role");
-    const callbackParam = params.get("callbackUrl");
     if (roleParam === "LANDLORD" || roleParam === "STUDENT") {
       setFormData((prev) => ({ ...prev, role: roleParam }));
     }
-    if (callbackParam) setCallbackUrl(callbackParam);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,30 +57,11 @@ export default function RegisterPage() {
       const result = await response.json();
 
       if (response.ok && result?.success) {
-        if (formData.role === "LANDLORD") {
-          // Auto sign-in and redirect straight to verification — no login screen
-          setSuccess("Account created! Setting up your account...");
-          const signInResult = await signIn("credentials", {
-            email: formData.email,
-            password: formData.password,
-            redirect: false,
-          });
-          if (signInResult?.ok) {
-            router.push("/landlord/verification");
-          } else {
-            // Fallback in case sign-in fails
-            router.push("/login?registered=landlord");
-          }
-        } else {
-          // Students go to login as usual
-          setSuccess(result.message || "Account created successfully!");
-          setTimeout(() => {
-            const loginUrl = callbackUrl
-              ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
-              : "/login";
-            router.push(loginUrl);
-          }, 1500);
-        }
+        setSuccess(result.message || "Account created successfully!");
+        setTimeout(() => {
+          const verifyUrl = `/verify-email?email=${encodeURIComponent(formData.email.toLowerCase().trim())}`;
+          router.push(verifyUrl);
+        }, 1200);
       } else {
         setError(result?.error || "Registration failed");
       }
@@ -134,7 +111,7 @@ export default function RegisterPage() {
               </select>
               {formData.role === "LANDLORD" && (
                 <p className="mt-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                  After creating your account you&apos;ll be taken directly to verify your identity and property — this keeps the platform trusted and safe for students.
+                  After creating your account, you&apos;ll verify your email first. Then you can access your dashboard and complete landlord document verification.
                 </p>
               )}
             </div>
@@ -223,11 +200,7 @@ export default function RegisterPage() {
               disabled={isLoading || !!success}
               className="w-full bg-[#E67E22] hover:bg-[#D35400] text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading
-                ? "Creating Account..."
-                : success
-                ? "Setting up..."
-                : "Create Account"}
+              {isLoading ? "Creating Account..." : success ? "Redirecting..." : "Create Account"}
             </button>
           </form>
 

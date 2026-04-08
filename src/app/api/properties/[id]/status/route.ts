@@ -9,6 +9,7 @@ import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import { sendPropertyApprovedToLandlord, sendPropertyRejectedToLandlord } from '@/lib/email';
+import { notifyUser } from '@/lib/notifications';
 import type { PropertyStatus } from '@prisma/client';
 
 interface RouteContext {
@@ -65,6 +66,14 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         propertyTitle: property.title,
         propertyId:    property.id,
       }).catch((err) => console.error('[email] property approved notification failed:', err));
+
+      await notifyUser({
+        userId: property.landlordId,
+        type: "PROPERTY",
+        title: "Listing approved",
+        message: `${property.title} is now live for students to book.`,
+        link: `/landlord/properties/${property.id}`,
+      });
     } else if (status === 'REJECTED') {
       sendPropertyRejectedToLandlord({
         landlordEmail: property.landlord.email,
@@ -72,6 +81,14 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         propertyTitle: property.title,
         reviewNote:    reason?.trim() ?? '',
       }).catch((err) => console.error('[email] property rejected notification failed:', err));
+
+      await notifyUser({
+        userId: property.landlordId,
+        type: "PROPERTY",
+        title: "Listing rejected",
+        message: `${property.title} requires updates before it can go live.`,
+        link: `/landlord/properties/${property.id}`,
+      });
     }
 
     return NextResponse.json({

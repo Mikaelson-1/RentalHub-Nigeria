@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { notifyUser } from "@/lib/notifications";
 
 export async function POST(request: Request) {
   try {
@@ -18,7 +19,11 @@ export async function POST(request: Request) {
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: { payments: { where: { status: "SUCCESS" }, orderBy: { createdAt: "desc" }, take: 1 } },
+      include: {
+        student: { select: { id: true, name: true } },
+        property: { select: { id: true, title: true, landlordId: true } },
+        payments: { where: { status: "SUCCESS" }, orderBy: { createdAt: "desc" }, take: 1 },
+      },
     });
 
     if (!booking) return NextResponse.json({ success: false, error: "Booking not found." }, { status: 404 });
@@ -56,6 +61,23 @@ export async function POST(request: Request) {
       where: { id: booking.propertyId },
       data: { vacantUnits: { increment: 1 } },
     });
+
+    await Promise.all([
+      notifyUser({
+        userId: booking.student.id,
+        type: "PAYMENT",
+        title: "Refund initiated",
+        message: `Refund for ${booking.property.title} has been initiated.`,
+        link: "/student",
+      }),
+      notifyUser({
+        userId: booking.property.landlordId,
+        type: "PAYMENT",
+        title: "Refund initiated",
+        message: `A refund has been initiated for a cancelled booking on ${booking.property.title}.`,
+        link: "/landlord",
+      }),
+    ]);
 
     return NextResponse.json({ success: true, message: "Refund initiated. It will reflect in 3-5 business days." });
   } catch (error) {

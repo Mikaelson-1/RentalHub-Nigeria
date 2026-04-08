@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { sendBookingExpiredToStudent } from "@/lib/email";
+import { notifyUser } from "@/lib/notifications";
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -41,6 +42,14 @@ export async function POST(request: Request) {
         studentName: b.student.name,
         propertyTitle: b.property.title,
       }).catch(console.error);
+
+      await notifyUser({
+        userId: b.studentId,
+        type: "BOOKING",
+        title: "Booking expired",
+        message: `Your booking for ${b.property.title} expired because payment was not completed.`,
+        link: "/student",
+      });
     }
 
     return NextResponse.json({ success: true, expired: expired.length, ids: expired.map((b) => b.id) });

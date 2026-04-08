@@ -10,6 +10,7 @@ import { authOptions } from '@/lib/auth';
 import type { PropertyStatus } from '@prisma/client';
 import { SCHOOL_LOCATION_KEYWORDS } from '@/lib/schools';
 import gemini from '@/lib/gemini';
+import { notifyRole, notifyUser } from '@/lib/notifications';
 
 // ── GET — Browse approved properties ─────────────────────
 
@@ -188,6 +189,23 @@ export async function POST(request: Request) {
       },
       include: { location: true },
     });
+
+    await Promise.all([
+      notifyUser({
+        userId: session.user.id,
+        type: "PROPERTY",
+        title: "Listing submitted",
+        message: `${property.title} was submitted and is pending admin review.`,
+        link: "/landlord",
+      }),
+      notifyRole(
+        "ADMIN",
+        "New listing pending review",
+        `${property.title} in ${property.location.name} was submitted by a landlord.`,
+        "PROPERTY",
+        "/admin",
+      ),
+    ]);
 
     return NextResponse.json(
       { success: true, data: property, message: 'Property submitted for admin review.' },

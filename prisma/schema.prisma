@@ -55,6 +55,8 @@ model User {
   password           String
   role               Role               @default(STUDENT)
   verificationStatus VerificationStatus @default(UNVERIFIED)
+  emailVerified      Boolean            @default(false)
+  emailVerificationSentAt DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
@@ -76,11 +78,22 @@ model User {
   reviewedProperties Property[]         @relation("PropertyReviews")
   bookings           Booking[]          @relation("StudentBookings")
   imageHashes        ImageHash[]
+  notifications      Notification[]
+  emailOtps          EmailOtp[]
 
   @@index([email])
   @@index([role])
   @@index([verificationStatus])
   @@map("users")
+}
+
+enum NotificationType {
+  SYSTEM
+  ACCOUNT
+  VERIFICATION
+  PROPERTY
+  BOOKING
+  PAYMENT
 }
 
 model Location {
@@ -202,4 +215,38 @@ model ImageHash {
   @@index([hash])
   @@index([uploadedById])
   @@map("image_hashes")
+}
+
+model EmailOtp {
+  id        String   @id @default(cuid())
+  userId    String
+  email     String
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([email, createdAt])
+  @@index([expiresAt])
+  @@map("email_otps")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType @default(SYSTEM)
+  title     String
+  message   String           @db.Text
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@map("notifications")
 }

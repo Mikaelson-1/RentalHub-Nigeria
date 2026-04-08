@@ -10,6 +10,7 @@ import {
   sendPaymentConfirmedToStudent,
   sendPaymentReceivedToLandlord,
 } from "@/lib/email";
+import { notifyUser } from "@/lib/notifications";
 
 export async function GET(request: Request) {
   try {
@@ -36,7 +37,10 @@ export async function GET(request: Request) {
       where: { id: bookingId },
       include: {
         property: {
-          include: { landlord: { select: { id: true, name: true, email: true, phoneNumber: true } } },
+          include: {
+            location: { select: { name: true } },
+            landlord: { select: { id: true, name: true, email: true, phoneNumber: true } },
+          },
         },
         student: { select: { id: true, name: true, email: true } },
       },
@@ -82,7 +86,7 @@ export async function GET(request: Request) {
       studentEmail: booking.student.email,
       studentName: booking.student.name,
       propertyTitle: booking.property.title,
-      propertyLocation: "",
+      propertyLocation: booking.property.location.name,
       landlordName: booking.property.landlord.name,
       landlordPhone: booking.property.landlord.phoneNumber ?? "",
       amount: formattedAmount,
@@ -99,6 +103,23 @@ export async function GET(request: Request) {
       amount: formattedAmount,
       paystackRef: reference,
     }).catch(console.error);
+
+    await Promise.all([
+      notifyUser({
+        userId: booking.student.id,
+        type: "PAYMENT",
+        title: "Payment successful",
+        message: `Your payment for ${booking.property.title} was confirmed.`,
+        link: `/student/bookings/${bookingId}/receipt`,
+      }),
+      notifyUser({
+        userId: booking.property.landlord.id,
+        type: "PAYMENT",
+        title: "Payment received",
+        message: `${booking.student.name} completed payment for ${booking.property.title}.`,
+        link: "/landlord",
+      }),
+    ]);
 
     return NextResponse.json({ success: true, data: { paymentStatus: "SUCCESS", amountPaid, reference } });
   } catch (error) {

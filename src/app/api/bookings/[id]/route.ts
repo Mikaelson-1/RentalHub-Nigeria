@@ -8,6 +8,11 @@ import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import type { BookingStatus } from '@prisma/client';
+import {
+  sendBookingCancelledToStudent,
+  sendBookingConfirmedToStudent,
+} from '@/lib/email';
+import { notifyUser } from '@/lib/notifications';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -83,7 +88,19 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     // Fetch the booking and verify the landlord owns the property
     const booking = await prisma.booking.findUnique({
       where: { id },
-      include: { property: { select: { landlordId: true, title: true } } },
+      include: {
+        property: {
+          select: {
+            id: true,
+            landlordId: true,
+            title: true,
+            price: true,
+            landlord: { select: { name: true } },
+            location: { select: { name: true } },
+          },
+        },
+        student: { select: { id: true, email: true, name: true } },
+      },
     });
 
     if (!booking) {
@@ -105,17 +122,66 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
     const updated = await prisma.booking.update({
       where: { id },
-      data:  { status },
+      data: status === "CONFIRMED"
+        ? {
+            status: "AWAITING_PAYMENT",
+            amount: booking.amount ?? booking.property.price,
+            expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+          }
+        : { status },
       include: {
         student:  { select: { id: true, name: true, email: true } },
-        property: { select: { id: true, title: true } },
+        property: {
+          select: {
+            id: true,
+            title: true,
+            location: { select: { name: true } },
+            landlord: { select: { id: true, name: true } },
+          },
+        },
       },
     });
+
+    if (status === "CONFIRMED") {
+      sendBookingConfirmedToStudent({
+        studentEmail: updated.student.email,
+        studentName: updated.student.name,
+        propertyTitle: updated.property.title,
+        propertyLocation: updated.property.location.name,
+        landlordName: updated.property.landlord.name,
+      }).catch(console.error);
+
+      await notifyUser({
+        userId: updated.student.id,
+        type: "BOOKING",
+        title: "Booking confirmed",
+        message: `${updated.property.title} was confirmed. Complete payment within 48 hours.`,
+        link: `/student/bookings/${updated.id}`,
+      });
+    }
+
+    if (status === "CANCELLED") {
+      sendBookingCancelledToStudent({
+        studentEmail: updated.student.email,
+        studentName: updated.student.name,
+        propertyTitle: updated.property.title,
+        propertyLocation: updated.property.location.name,
+        cancelledBy: "landlord",
+      }).catch(console.error);
+
+      await notifyUser({
+        userId: updated.student.id,
+        type: "BOOKING",
+        title: "Booking cancelled",
+        message: `Your booking for ${updated.property.title} was cancelled by the landlord.`,
+        link: "/student",
+      });
+    }
 
     return NextResponse.json({
       success: true,
       data:    updated,
-      message: `Booking ${status.toLowerCase()} successfully.`,
+      message: status === "CONFIRMED" ? "Booking confirmed. Awaiting student payment." : "Booking cancelled successfully.",
     });
   } catch (error) {
     console.error('[BOOKING PATCH ERROR]', error);

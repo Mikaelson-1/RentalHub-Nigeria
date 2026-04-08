@@ -3,7 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
-import { Search, MessageSquare, Bell, HelpCircle, Plus } from "lucide-react";
+import { Search, MessageSquare, HelpCircle, Plus } from "lucide-react";
+import NotificationBell from "@/components/NotificationBell";
 
 export default function Navbar() {
   const { data: session, status } = useSession();
@@ -52,12 +53,8 @@ export default function Navbar() {
                   <button className="p-2 text-gray-600 hover:text-[#E67E22] transition-colors rounded-full hover:bg-gray-100">
                     <MessageSquare className="w-5 h-5" />
                   </button>
-                  
-                  {/* Bell with notification badge */}
-                  <button className="relative p-2 text-gray-600 hover:text-[#E67E22] transition-colors rounded-full hover:bg-gray-100">
-                    <Bell className="w-5 h-5" />
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#E67E22] rounded-full"></span>
-                  </button>
+
+                  <NotificationBell />
                   
                   <button className="p-2 text-gray-600 hover:text-[#E67E22] transition-colors rounded-full hover:bg-gray-100">
                     <HelpCircle className="w-5 h-5" />

@@ -7,7 +7,13 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { sendVerificationRejectedToLandlord } from "@/lib/email";
+import {
+  sendAccountSuspendedEmail,
+  sendAccountUnsuspendedEmail,
+  sendVerificationApprovedToLandlord,
+  sendVerificationRejectedToLandlord,
+} from "@/lib/email";
+import { notifyUser } from "@/lib/notifications";
 
 export async function GET() {
   try {
@@ -127,6 +133,46 @@ export async function PATCH(request: Request) {
         rejectionNote: note.trim(),
       }).catch((err) => console.error("[email] verification rejected landlord notification failed:", err));
     }
+    if (action === "APPROVE" || action === "UNSUSPEND") {
+      sendVerificationApprovedToLandlord({
+        landlordEmail: updated.email,
+        landlordName: updated.name,
+      }).catch((err) => console.error("[email] verification approved landlord notification failed:", err));
+    }
+    if (action === "SUSPEND") {
+      sendAccountSuspendedEmail({
+        to: updated.email,
+        name: updated.name,
+      }).catch((err) => console.error("[email] account suspended notification failed:", err));
+    }
+    if (action === "UNSUSPEND") {
+      sendAccountUnsuspendedEmail({
+        to: updated.email,
+        name: updated.name,
+      }).catch((err) => console.error("[email] account unsuspended notification failed:", err));
+    }
+
+    await notifyUser({
+      userId: updated.id,
+      type: "VERIFICATION",
+      title:
+        action === "APPROVE" || action === "UNSUSPEND"
+          ? "Verification approved"
+          : action === "SUSPEND"
+          ? "Account suspended"
+          : action === "RESET"
+          ? "Verification reset"
+          : "Verification rejected",
+      message:
+        action === "APPROVE" || action === "UNSUSPEND"
+          ? "Your landlord verification was approved."
+          : action === "SUSPEND"
+          ? "Your landlord account has been suspended. Contact support for details."
+          : action === "RESET"
+          ? "Your verification was reset. Please re-submit your documents."
+          : `Your verification was rejected. Reason: ${(note ?? "").trim()}`,
+      link: "/landlord/verification",
+    });
 
     return NextResponse.json({
       success: true,

@@ -11,6 +11,9 @@ import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { rateLimit, getRateLimitKey } from '@/lib/rate-limit';
 import { logger } from '@/lib/logger';
+import { createEmailOtp } from '@/lib/otp';
+import { sendEmailVerificationOtp } from '@/lib/email';
+import { notifyUser } from '@/lib/notifications';
 
 type AllowedRole = 'STUDENT' | 'LANDLORD';
 
@@ -79,7 +82,8 @@ export async function POST(request: Request) {
         email: normalizedEmail,
         password: hashedPassword,
         role,
-        // Landlords start UNVERIFIED and must submit documents before being trusted
+        emailVerified: false,
+        // Landlords start UNVERIFIED for document verification.
         verificationStatus: role === 'LANDLORD' ? 'UNVERIFIED' : 'VERIFIED',
       },
       select: {
@@ -92,8 +96,27 @@ export async function POST(request: Request) {
       },
     });
 
+    const otp = await createEmailOtp(user.id, user.email);
+    sendEmailVerificationOtp({
+      to: user.email,
+      name: user.name,
+      otpCode: otp,
+    }).catch((err) => logger.error("[REGISTER OTP EMAIL ERROR]", { error: String(err) }));
+
+    await notifyUser({
+      userId: user.id,
+      type: "ACCOUNT",
+      title: "Verify your email",
+      message: "Use the OTP sent to your email to verify your account before logging in.",
+      link: `/verify-email?email=${encodeURIComponent(user.email)}`,
+    });
+
     return NextResponse.json(
-      { success: true, data: user, message: 'Account created successfully.' },
+      {
+        success: true,
+        data: user,
+        message: "Account created. Check your email for OTP verification.",
+      },
       { status: 201 },
     );
   } catch (error) {

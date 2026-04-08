@@ -7,7 +7,11 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { sendVerificationSubmittedToAdmin } from "@/lib/email";
+import {
+  sendVerificationSubmissionReceivedToLandlord,
+  sendVerificationSubmittedToAdmin,
+} from "@/lib/email";
+import { notifyRole, notifyUser } from "@/lib/notifications";
 
 export async function GET() {
   try {
@@ -123,6 +127,28 @@ export async function POST(request: Request) {
         landlordEmail: landlordUser.email,
         submittedAt: new Date().toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" }),
       }).catch((err) => console.error("[email] verification submitted admin notification failed:", err));
+
+      sendVerificationSubmissionReceivedToLandlord({
+        landlordEmail: landlordUser.email,
+        landlordName: landlordUser.name,
+      }).catch((err) => console.error("[email] verification submission received landlord notification failed:", err));
+
+      await Promise.all([
+        notifyUser({
+          userId: session.user.id,
+          type: "VERIFICATION",
+          title: "Verification submitted",
+          message: "Your verification documents were submitted and are now under review.",
+          link: "/landlord/verification",
+        }),
+        notifyRole(
+          "ADMIN",
+          "New landlord verification",
+          `${landlordUser.name} submitted verification documents for review.`,
+          "VERIFICATION",
+          "/admin",
+        ),
+      ]);
     }
 
     return NextResponse.json({

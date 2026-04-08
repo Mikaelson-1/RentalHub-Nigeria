@@ -13,6 +13,7 @@
  */
 
 import nodemailer from "nodemailer";
+import { Role } from "@prisma/client";
 
 // ── Transporter ─────────────────────────────────────────────────────────────
 
@@ -119,6 +120,111 @@ export async function sendPasswordResetEmail(to: string, name: string, resetToke
       </p>
       <p style="color:#6b7280;font-size:13px;">This link expires in <strong>1 hour</strong>. If you didn't request a password reset, you can safely ignore this email — your password will not change.</p>
       <p style="color:#6b7280;font-size:12px;word-break:break-all;">If the button above doesn't work, copy and paste this URL into your browser:<br/>${resetUrl}</p>
+    `),
+  });
+}
+
+// ── Account Email Verification OTP ──────────────────────────────────────────
+
+export async function sendEmailVerificationOtp(options: {
+  to: string;
+  name: string;
+  otpCode: string;
+}) {
+  const { to, name, otpCode } = options;
+  const verifyUrl = `${APP_URL}/verify-email?email=${encodeURIComponent(to)}`;
+
+  await sendMail({
+    to,
+    subject: "Verify your RentalHub account",
+    html: wrap("Email Verification", `
+      <p>Hi <strong>${name}</strong>,</p>
+      <p>Welcome to RentalHub NG. Use the OTP code below to verify your account:</p>
+      <p style="margin:20px 0;">
+        <span style="display:inline-block;font-size:28px;letter-spacing:6px;font-weight:700;background:#fff7ed;color:#c2410c;padding:12px 18px;border-radius:10px;border:1px solid #fdba74;">
+          ${otpCode}
+        </span>
+      </p>
+      <p style="color:#6b7280;font-size:13px;">This code expires in <strong>10 minutes</strong>.</p>
+      <p style="margin:28px 0;">
+        <a href="${verifyUrl}"
+           style="background:#192F59;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;">
+          Verify My Account
+        </a>
+      </p>
+      <p style="color:#6b7280;font-size:12px;">If you did not create this account, please ignore this email.</p>
+    `),
+  });
+}
+
+// ── Admin Account Event Notifications ───────────────────────────────────────
+
+export async function sendAccountSuspendedEmail(options: {
+  to: string;
+  name: string;
+}) {
+  const { to, name } = options;
+
+  await sendMail({
+    to,
+    subject: "Your RentalHub account has been suspended",
+    html: wrap("Account Suspended", `
+      <p>Hi <strong>${name}</strong>,</p>
+      <p>Your account has been <strong style="color:#991b1b;">suspended</strong> by the platform admin.</p>
+      <p>If you believe this is a mistake, please contact support at <a href="mailto:support@rentalhub.ng" style="color:#E67E22;">support@rentalhub.ng</a>.</p>
+    `),
+  });
+}
+
+export async function sendAccountUnsuspendedEmail(options: {
+  to: string;
+  name: string;
+}) {
+  const { to, name } = options;
+  const loginUrl = `${APP_URL}/login`;
+
+  await sendMail({
+    to,
+    subject: "Your RentalHub account has been reactivated",
+    html: wrap("Account Reactivated", `
+      <p>Hi <strong>${name}</strong>,</p>
+      <p>Your account has been reactivated and you can now sign in again.</p>
+      <p style="margin:28px 0;">
+        <a href="${loginUrl}" style="background:#E67E22;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;">
+          Sign In
+        </a>
+      </p>
+    `),
+  });
+}
+
+export async function sendRoleChangedEmail(options: {
+  to: string;
+  name: string;
+  oldRole: Role;
+  newRole: Role;
+}) {
+  const { to, name, oldRole, newRole } = options;
+  const dashboardUrl =
+    newRole === "ADMIN" ? `${APP_URL}/admin` :
+    newRole === "LANDLORD" ? `${APP_URL}/landlord` :
+    `${APP_URL}/student`;
+
+  await sendMail({
+    to,
+    subject: "Your RentalHub account role was updated",
+    html: wrap("Role Updated", `
+      <p>Hi <strong>${name}</strong>,</p>
+      <p>Your account role has been updated by an admin.</p>
+      <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px;">
+        <tr><td style="padding:8px 0;color:#6b7280;width:140px;">Previous role</td><td style="padding:8px 0;">${oldRole}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">New role</td><td style="padding:8px 0;font-weight:600;color:#192F59;">${newRole}</td></tr>
+      </table>
+      <p style="margin:28px 0;">
+        <a href="${dashboardUrl}" style="background:#192F59;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;">
+          Open Dashboard
+        </a>
+      </p>
     `),
   });
 }
@@ -363,6 +469,55 @@ export async function sendVerificationSubmittedToAdmin(options: {
       <p style="margin:28px 0;">
         <a href="${adminUrl}" style="background:#192F59;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;">
           Review in Admin Dashboard
+        </a>
+      </p>
+    `),
+  });
+}
+
+/** Sent to landlord after verification documents are submitted */
+export async function sendVerificationSubmissionReceivedToLandlord(options: {
+  landlordEmail: string;
+  landlordName: string;
+}) {
+  const { landlordEmail, landlordName } = options;
+  const dashboardUrl = `${APP_URL}/landlord`;
+
+  await sendMail({
+    to: landlordEmail,
+    subject: "Verification submitted — under review",
+    html: wrap("Verification Submitted", `
+      <p>Hi <strong>${landlordName}</strong>,</p>
+      <p>We received your verification documents successfully.</p>
+      <p>Your account is now under review. This typically takes <strong>24–48 hours</strong>.</p>
+      <p style="margin:28px 0;">
+        <a href="${dashboardUrl}" style="background:#192F59;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;">
+          Go to Dashboard
+        </a>
+      </p>
+      <p style="color:#6b7280;font-size:13px;">We will notify you by email once a decision is made.</p>
+    `),
+  });
+}
+
+/** Sent to landlord when verification is approved */
+export async function sendVerificationApprovedToLandlord(options: {
+  landlordEmail: string;
+  landlordName: string;
+}) {
+  const { landlordEmail, landlordName } = options;
+  const dashboardUrl = `${APP_URL}/landlord`;
+
+  await sendMail({
+    to: landlordEmail,
+    subject: "Your landlord account is now verified",
+    html: wrap("Verification Approved ✅", `
+      <p>Hi <strong>${landlordName}</strong>,</p>
+      <p>Great news — your landlord account verification has been <strong style="color:#16a34a;">approved</strong>.</p>
+      <p>You can now receive higher-trust visibility for your listings and continue managing bookings.</p>
+      <p style="margin:28px 0;">
+        <a href="${dashboardUrl}" style="background:#E67E22;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;">
+          Open Dashboard
         </a>
       </p>
     `),

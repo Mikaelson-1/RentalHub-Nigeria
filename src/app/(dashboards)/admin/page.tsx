@@ -133,6 +133,7 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState("");
+  const [userUpdatingId, setUserUpdatingId] = useState("");
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [forecastLoading, setForecastLoading] = useState(false);
   const [verificationLandlords, setVerificationLandlords] = useState<VerificationLandlord[]>([]);
@@ -277,6 +278,31 @@ export default function AdminDashboard() {
       setVerificationError(e instanceof Error ? e.message : "Failed to update verification.");
     } finally {
       setVerificationUpdatingId("");
+    }
+  };
+
+  const updateUserAccount = async (
+    userId: string,
+    action: "SUSPEND" | "UNSUSPEND" | "CHANGE_ROLE",
+    role?: "STUDENT" | "LANDLORD" | "ADMIN",
+  ) => {
+    setUserUpdatingId(userId);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, action, role }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Failed to update user account.");
+      }
+      await loadAdminData(selectedSchool);
+    } catch (accountError) {
+      setError(accountError instanceof Error ? accountError.message : "Failed to update user account.");
+    } finally {
+      setUserUpdatingId("");
     }
   };
 
@@ -786,8 +812,9 @@ export default function AdminDashboard() {
                         <td className="py-4 px-4 text-gray-700">{user._count?.bookings ?? 0}</td>
                         <td className="py-4 px-4 text-gray-700">{new Date(user.createdAt).toLocaleDateString()}</td>
                         <td className="py-4 px-4">
-                          {user.role === "LANDLORD" && (
-                            <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1">
+                            {user.role === "LANDLORD" && (
+                              <>
                               {user.verificationStatus === "SUSPENDED" ? (
                                 <button
                                   onClick={async () => {
@@ -814,8 +841,70 @@ export default function AdminDashboard() {
                                   className="text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 px-2 py-1 rounded-md font-medium"
                                 >Reset</button>
                               )}
-                            </div>
-                          )}
+                              </>
+                            )}
+                            {user.role !== "LANDLORD" && (
+                              user.verificationStatus === "SUSPENDED" ? (
+                                <button
+                                  disabled={userUpdatingId === user.id}
+                                  onClick={async () => {
+                                    if (!confirm(`Unsuspend ${user.name}?`)) return;
+                                    await updateUserAccount(user.id, "UNSUSPEND");
+                                  }}
+                                  className="text-xs bg-blue-100 hover:bg-blue-200 disabled:opacity-50 text-blue-700 px-2 py-1 rounded-md font-medium"
+                                >
+                                  {userUpdatingId === user.id ? "Saving..." : "Unsuspend"}
+                                </button>
+                              ) : (
+                                <button
+                                  disabled={userUpdatingId === user.id}
+                                  onClick={async () => {
+                                    if (!confirm(`Suspend ${user.name}?`)) return;
+                                    await updateUserAccount(user.id, "SUSPEND");
+                                  }}
+                                  className="text-xs bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 px-2 py-1 rounded-md font-medium"
+                                >
+                                  {userUpdatingId === user.id ? "Saving..." : "Suspend"}
+                                </button>
+                              )
+                            )}
+                            {user.role !== "ADMIN" && (
+                              <button
+                                disabled={userUpdatingId === user.id}
+                                onClick={async () => {
+                                  if (!confirm(`Change ${user.name} to ADMIN?`)) return;
+                                  await updateUserAccount(user.id, "CHANGE_ROLE", "ADMIN");
+                                }}
+                                className="text-xs bg-indigo-100 hover:bg-indigo-200 disabled:opacity-50 text-indigo-700 px-2 py-1 rounded-md font-medium"
+                              >
+                                Make Admin
+                              </button>
+                            )}
+                            {user.role !== "STUDENT" && (
+                              <button
+                                disabled={userUpdatingId === user.id}
+                                onClick={async () => {
+                                  if (!confirm(`Change ${user.name} to STUDENT?`)) return;
+                                  await updateUserAccount(user.id, "CHANGE_ROLE", "STUDENT");
+                                }}
+                                className="text-xs bg-emerald-100 hover:bg-emerald-200 disabled:opacity-50 text-emerald-700 px-2 py-1 rounded-md font-medium"
+                              >
+                                Make Student
+                              </button>
+                            )}
+                            {user.role !== "LANDLORD" && (
+                              <button
+                                disabled={userUpdatingId === user.id}
+                                onClick={async () => {
+                                  if (!confirm(`Change ${user.name} to LANDLORD?`)) return;
+                                  await updateUserAccount(user.id, "CHANGE_ROLE", "LANDLORD");
+                                }}
+                                className="text-xs bg-orange-100 hover:bg-orange-200 disabled:opacity-50 text-orange-700 px-2 py-1 rounded-md font-medium"
+                              >
+                                Make Landlord
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))

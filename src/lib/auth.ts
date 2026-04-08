@@ -90,6 +90,9 @@ export const authOptions: NextAuthOptions = {
         if (user.verificationStatus === VerificationStatus.SUSPENDED) {
           throw new Error("Account has been suspended");
         }
+        if (!user.emailVerified) {
+          throw new Error("EMAIL_NOT_VERIFIED");
+        }
 
         // Return user object
         return {

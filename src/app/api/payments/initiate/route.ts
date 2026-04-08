@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { notifyUser } from "@/lib/notifications";
 
 export async function POST(request: Request) {
   try {
@@ -83,6 +84,14 @@ export async function POST(request: Request) {
         status: "PENDING",
         paystackRef: paystackData.data.reference,
       },
+    });
+
+    await notifyUser({
+      userId: booking.student.id,
+      type: "PAYMENT",
+      title: "Payment started",
+      message: `Payment has been initialized for ${booking.property.title}.`,
+      link: `/student/bookings/${bookingId}/verify-payment`,
     });
 
     return NextResponse.json({ success: true, data: { authorizationUrl: paystackData.data.authorization_url, reference: paystackData.data.reference } });
