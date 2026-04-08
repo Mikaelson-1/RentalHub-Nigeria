@@ -66,8 +66,35 @@ export async function POST(request: Request) {
     const normalizedEmail = email.toLowerCase().trim();
 
     // Check uniqueness
-    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    const existing = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true, name: true, email: true, emailVerified: true },
+    });
     if (existing) {
+      if (!existing.emailVerified) {
+        const otp = await createEmailOtp(existing.id, existing.email);
+        sendEmailVerificationOtp({
+          to: existing.email,
+          name: existing.name,
+          otpCode: otp,
+        }).catch((err) => logger.error("[REGISTER OTP RESEND ERROR]", { error: String(err) }));
+
+        await notifyUser({
+          userId: existing.id,
+          type: "ACCOUNT",
+          title: "Verify your email",
+          message: "We re-sent your OTP code. Verify your email to continue.",
+          link: `/verify-email?email=${encodeURIComponent(existing.email)}`,
+        });
+
+        return NextResponse.json(
+          {
+            success: true,
+            message: "Account already exists but is not verified. A new OTP has been sent to your email.",
+          },
+          { status: 200 },
+        );
+      }
       return NextResponse.json(
         { success: false, error: 'An account with this email already exists.' },
         { status: 409 },
