@@ -7,6 +7,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://rentalhub.ng"),
+  applicationName: "RentalHub NG",
   title: {
     default: "RentalHub NG - Off-Campus Accommodation",
     template: "%s | RentalHub NG",
@@ -15,6 +16,19 @@ export const metadata: Metadata = {
     "Find verified off-campus accommodation for Nigerian students. Browse properties near BOUESTI, book rooms, and manage your listings.",
   keywords: ["student accommodation", "off-campus housing", "BOUESTI", "Nigeria student housing", "rental", "RentalHub"],
   authors: [{ name: "RentalHub NG" }],
+  alternates: {
+    canonical: "https://rentalhub.ng",
+  },
+  icons: {
+    icon: [
+      { url: "/favicon-48.png", type: "image/png", sizes: "48x48" },
+      { url: "/favicon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/favicon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: [{ url: "/favicon-48.png", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  manifest: "/site.webmanifest",
   openGraph: {
     type: "website",
     locale: "en_NG",
@@ -23,13 +37,13 @@ export const metadata: Metadata = {
     title: "RentalHub NG - Off-Campus Accommodation",
     description:
       "Find verified off-campus accommodation for Nigerian students. Browse properties near BOUESTI, book rooms, and manage your listings.",
-    images: [{ url: "/og-default.jpg", width: 1200, height: 630, alt: "RentalHub NG" }],
+    images: [{ url: "/logo.png", width: 670, height: 338, alt: "RentalHub NG" }],
   },
   twitter: {
-    card: "summary_large_image",
+    card: "summary",
     title: "RentalHub NG - Off-Campus Accommodation",
     description: "Find verified off-campus accommodation for Nigerian students.",
-    images: ["/og-default.jpg"],
+    images: ["/logo.png"],
   },
   robots: {
     index: true,
@@ -43,8 +57,22 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "RentalHub NG",
+    url: "https://rentalhub.ng",
+    logo: "https://rentalhub.ng/favicon-512.png",
+  };
+
   return (
     <html lang="en" className={inter.variable}>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+        />
+      </head>
       <body className="font-sans overflow-x-hidden">
         <Providers>
           <div className="min-h-screen flex flex-col">
