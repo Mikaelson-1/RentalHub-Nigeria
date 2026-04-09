@@ -138,9 +138,6 @@ export default function NotificationBell() {
                     {!item.readAt && <span className="mt-1 w-2 h-2 rounded-full bg-[#E67E22] flex-shrink-0" />}
                   </div>
                   <p className={`mt-1 text-xs text-gray-600 ${expandedId === item.id ? "" : "line-clamp-2"}`}>{item.message}</p>
-                  {expandedId === item.id && item.link && (
-                    <p className="mt-1 text-[11px] text-gray-500">Related area: {item.link}</p>
-                  )}
                   <p className="mt-1 text-[11px] text-gray-400">{formatSince(item.createdAt)}</p>
                 </button>
               ))
