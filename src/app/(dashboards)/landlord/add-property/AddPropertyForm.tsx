@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useSession } from "next-auth/react";
 import { upload } from "@vercel/blob/client";
 import { 
   ChevronLeft, 
@@ -125,6 +126,7 @@ const amenityCategories = {
 
 export default function AddPropertyForm() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -139,6 +141,8 @@ export default function AddPropertyForm() {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const verificationInputRef = useRef<HTMLInputElement>(null);
+  const verificationStatus = (session?.user as { verificationStatus?: string } | undefined)?.verificationStatus;
+  const listingLocked = session?.user?.role === "LANDLORD" && verificationStatus !== "VERIFIED";
 
   const methods = useForm<PropertyFormInput, unknown, PropertyFormData>({
     resolver: zodResolver(propertySchema),
@@ -219,12 +223,23 @@ export default function AddPropertyForm() {
     file: File,
     category: "image" | "video" | "verificationDocument",
   ) => {
+    const withTimeout = async <T,>(promise: Promise<T>, ms: number, timeoutMessage: string): Promise<T> => {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error(timeoutMessage)), ms);
+      });
+      return Promise.race([promise, timeoutPromise]);
+    };
+
     if (category === "video" || category === "verificationDocument") {
       // Client-side upload — browser → Vercel Blob directly
-      const blob = await upload(`uploads/${category}/${Date.now()}-${file.name}`, file, {
-        access: "public",
-        handleUploadUrl: "/api/uploads/client-token",
-      });
+      const blob = await withTimeout(
+        upload(`uploads/${category}/${Date.now()}-${file.name}`, file, {
+          access: "public",
+          handleUploadUrl: "/api/uploads/client-token",
+        }),
+        60_000,
+        `${file.name} upload timed out. Please retry.`,
+      );
       return {
         name: file.name,
         type: category,
@@ -239,10 +254,14 @@ export default function AddPropertyForm() {
     formData.append("file", file);
     formData.append("category", category);
 
-    const response = await fetch("/api/uploads", {
-      method: "POST",
-      body: formData,
-    });
+    const response = await withTimeout(
+      fetch("/api/uploads", {
+        method: "POST",
+        body: formData,
+      }),
+      60_000,
+      `${file.name} upload timed out. Please retry.`,
+    );
 
     const payload = await response.json();
     if (!response.ok || !payload?.success || !payload?.data) {
@@ -355,6 +374,11 @@ export default function AddPropertyForm() {
   const onSubmit = async (data: PropertyFormData) => {
     setSubmitError("");
 
+    if (listingLocked) {
+      setSubmitError("Your account must be verified by admin before you can submit listings.");
+      return;
+    }
+
     if (selectedPhotos.length === 0) {
       setError("photos", {
         type: "manual",
@@ -381,9 +405,12 @@ export default function AddPropertyForm() {
         ...data.amenities.facilities,
       ];
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30_000);
       const response = await fetch("/api/properties", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           title: data.title,
           description: aiDescription.trim() ||
@@ -407,6 +434,7 @@ export default function AddPropertyForm() {
           ],
         }),
       });
+      clearTimeout(timeoutId);
 
       const payload = await response.json();
       if (!response.ok || !payload?.success) {
@@ -511,6 +539,11 @@ export default function AddPropertyForm() {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="p-8">
+              {listingLocked && (
+                <p className="mb-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                  Listing is locked until your landlord verification is approved by admin.
+                </p>
+              )}
               {/* Step 1: Core Details */}
               {currentStep === 1 && (
                 <div className="space-y-6">
@@ -988,7 +1021,7 @@ export default function AddPropertyForm() {
                 ) : (
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || listingLocked}
                     className="flex items-center gap-2 px-8 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? (

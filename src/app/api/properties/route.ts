@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
-import type { PropertyStatus } from '@prisma/client';
+import type { PropertyStatus, VerificationStatus } from '@prisma/client';
 import { SCHOOL_LOCATION_KEYWORDS } from '@/lib/schools';
 import gemini from '@/lib/gemini';
 import { notifyRole, notifyUser } from '@/lib/notifications';
@@ -106,6 +106,32 @@ export async function POST(request: Request) {
 
     if (session.user.role !== 'LANDLORD' && session.user.role !== 'ADMIN') {
       return NextResponse.json({ success: false, error: 'Only landlords can list properties.' }, { status: 403 });
+    }
+
+    // Enforce listing gate: landlords must be verified before listing
+    if (session.user.role === "LANDLORD") {
+      const landlord = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { verificationStatus: true },
+      });
+
+      const status = landlord?.verificationStatus as VerificationStatus | undefined;
+      if (!status || status !== "VERIFIED") {
+        const statusMessage: Record<Exclude<VerificationStatus, "VERIFIED">, string> = {
+          UNVERIFIED: "Complete your landlord verification before listing properties.",
+          UNDER_REVIEW: "Your verification documents are under review. You can list properties after approval.",
+          REJECTED: "Your verification was rejected. Please resubmit documents before listing properties.",
+          SUSPENDED: "Your account is suspended and cannot create listings.",
+        };
+
+        return NextResponse.json(
+          {
+            success: false,
+            error: statusMessage[status as Exclude<VerificationStatus, "VERIFIED">] ?? "Your account is not eligible to create listings yet.",
+          },
+          { status: 403 },
+        );
+      }
     }
 
     const body = await request.json();
