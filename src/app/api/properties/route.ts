@@ -109,11 +109,11 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { title, description, price, locationId, distanceToCampus, amenities = [], images = [], vacantUnits } = body;
+    const { title, description, price, locationId, locationName, distanceToCampus, amenities = [], images = [], vacantUnits } = body;
 
-    if (!title?.trim() || !description?.trim() || !price || !locationId) {
+    if (!title?.trim() || !description?.trim() || !price || (!locationId && !locationName?.trim())) {
       return NextResponse.json(
-        { success: false, error: 'Title, description, price, and location are required.' },
+        { success: false, error: 'Title, description, price, and environment/area are required.' },
         { status: 400 },
       );
     }
@@ -132,9 +132,25 @@ export async function POST(request: Request) {
       );
     }
 
-    const locationExists = await prisma.location.findUnique({ where: { id: locationId } });
-    if (!locationExists) {
-      return NextResponse.json({ success: false, error: 'Invalid location.' }, { status: 400 });
+    let resolvedLocationId: string;
+    if (locationId) {
+      const locationExists = await prisma.location.findUnique({ where: { id: locationId } });
+      if (!locationExists) {
+        return NextResponse.json({ success: false, error: 'Invalid location.' }, { status: 400 });
+      }
+      resolvedLocationId = locationExists.id;
+    } else {
+      const normalizedLocationName = String(locationName).trim();
+      const location = await prisma.location.upsert({
+        where: { name: normalizedLocationName },
+        update: {},
+        create: {
+          name: normalizedLocationName,
+          classification: "Neighbourhood",
+        },
+        select: { id: true },
+      });
+      resolvedLocationId = location.id;
     }
 
     // AI Scam check — run inline (no HTTP self-call) with a 7s timeout so it never blocks submission
@@ -177,7 +193,7 @@ export async function POST(request: Request) {
         title:            title.trim(),
         description:      description.trim(),
         price,
-        locationId,
+        locationId:       resolvedLocationId,
         landlordId:       session.user.id,
         distanceToCampus: distanceToCampus ? Number(distanceToCampus) : null,
         amenities,

@@ -1,5 +1,5 @@
 /**
- * GET /api/ai/price-advisor?locationId=&propertyType=
+ * GET /api/ai/price-advisor?locationId=&locationName=&propertyType=
  * Returns market pricing stats and an AI insight for a given location/type.
  * No auth required — public data.
  */
@@ -12,13 +12,25 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const locationId = searchParams.get("locationId") ?? undefined;
+    const locationName = searchParams.get("locationName")?.trim() || undefined;
     const propertyType = searchParams.get("propertyType") ?? "";
 
     // Get APPROVED properties for the given location (or all if not specified)
     let properties = await prisma.property.findMany({
       where: {
         status: "APPROVED",
-        ...(locationId ? { locationId } : {}),
+        ...(locationId
+          ? { locationId }
+          : locationName
+          ? {
+              location: {
+                name: {
+                  contains: locationName,
+                  mode: "insensitive",
+                },
+              },
+            }
+          : {}),
       },
       select: { price: true },
       take: 500,

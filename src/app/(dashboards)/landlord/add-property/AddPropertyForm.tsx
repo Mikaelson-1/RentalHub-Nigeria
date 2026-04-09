@@ -43,7 +43,7 @@ const propertySchema = z.object({
   
   // Step 2: Location & Amenities
   targetUniversity: z.string(),
-  environment: z.string().min(1, "Please select an environment"),
+  environment: z.string().min(2, "Please enter an environment/area"),
   distanceToCampus: z.string().min(1, "Please select distance"),
   amenities: z.object({
     water: z.array(z.string()),
@@ -100,11 +100,6 @@ const DISTANCE_TO_KM: Record<string, number> = {
   bike_cab: 3.0,
 };
 
-interface LocationOption {
-  id: string;
-  name: string;
-}
-
 const amenityCategories = {
   water: {
     icon: Droplets,
@@ -132,8 +127,6 @@ export default function AddPropertyForm() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [locations, setLocations] = useState<LocationOption[]>([]);
-  const [locationsLoading, setLocationsLoading] = useState(true);
   const [submitError, setSubmitError] = useState("");
   const [aiDescription, setAiDescription] = useState("");
   const [aiDescLoading, setAiDescLoading] = useState(false);
@@ -205,7 +198,7 @@ export default function AddPropertyForm() {
     if (!values.environment) return;
     setPriceAdvisorLoading(true);
     try {
-      const res = await fetch(`/api/ai/price-advisor?locationId=${values.environment}&propertyType=${encodeURIComponent(values.propertyType || "")}`);
+      const res = await fetch(`/api/ai/price-advisor?locationName=${encodeURIComponent(values.environment)}&propertyType=${encodeURIComponent(values.propertyType || "")}`);
       const json = await res.json();
       if (res.ok && json.success) setPriceAdvisor(json.data);
     } catch { /* silent */ }
@@ -216,27 +209,6 @@ export default function AddPropertyForm() {
     if (currentStep === 3) loadPriceAdvisor();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
-
-  useEffect(() => {
-    const loadLocations = async () => {
-      try {
-        const response = await fetch("/api/locations");
-        if (!response.ok) {
-          throw new Error("Failed to load locations");
-        }
-        const payload = await response.json();
-        const items = (payload?.data ?? []) as LocationOption[];
-        setLocations(items);
-      } catch (error) {
-        console.error("Could not fetch locations:", error);
-        setSubmitError("Could not load location list. Refresh and try again.");
-      } finally {
-        setLocationsLoading(false);
-      }
-    };
-
-    loadLocations();
-  }, []);
 
   /**
    * Images go through the server route (needs AI + hash analysis).
@@ -425,7 +397,7 @@ export default function AddPropertyForm() {
               .filter(Boolean)
               .join("\n"),
           price: data.annualRent,
-          locationId: data.environment,
+          locationName: data.environment,
           distanceToCampus: DISTANCE_TO_KM[data.distanceToCampus] ?? null,
           amenities,
           images: [
@@ -670,20 +642,12 @@ export default function AddPropertyForm() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Environment/Area *
                       </label>
-                      <select
+                      <input
                         {...register("environment")}
-                        disabled={locationsLoading || locations.length === 0}
+                        type="text"
+                        placeholder="e.g., Odo Oja, Ikere-Ekiti"
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
-                      >
-                        <option value="">
-                          {locationsLoading ? "Loading locations..." : "Select area"}
-                        </option>
-                        {locations.map((location) => (
-                          <option key={location.id} value={location.id}>
-                            {location.name}
-                          </option>
-                        ))}
-                      </select>
+                      />
                       {errors.environment && (
                         <p className="mt-1 text-sm text-red-500">{errors.environment.message}</p>
                       )}
