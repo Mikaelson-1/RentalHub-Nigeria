@@ -1,6 +1,6 @@
 /**
  * GET /api/paystack/banks
- * Returns the list of Nigerian banks from Paystack.
+ * Returns the list of supported banks from Paystack.
  * Cached for 1 hour since the list rarely changes.
  */
 import { NextResponse } from "next/server";

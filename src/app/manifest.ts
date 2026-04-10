@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "RentalHub",
     short_name: "RentalHub",
-    description: "Verified off-campus accommodation platform for students in Nigeria.",
+    description: "Verified off-campus accommodation platform for university students.",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",

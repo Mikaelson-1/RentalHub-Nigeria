@@ -525,7 +525,7 @@ export default function LandlordProfilePage() {
           )}
         </div>
         <p className="text-sm text-gray-500 mb-5">
-          This is the Nigerian bank account where your rent payments will be sent when a student confirms they have moved in.
+          This is the bank account where your rent payments will be sent when a student confirms they have moved in.
         </p>
 
         {/* Alerts */}

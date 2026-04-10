@@ -229,9 +229,9 @@ function ApartmentManagementCard({ booking, onRefresh }: { booking: BookingItem;
 // ─── Tenancy Agreement Modal ────────────────────────────────────────────────
 
 const TENANCY_RULES = `
-TENANCY AGREEMENT — RENTALHUB NIGERIA
+TENANCY AGREEMENT — RENTALHUB
 
-This Tenancy Agreement ("Agreement") is entered into between the Landlord (the owner of the property listed on RentalHub) and the Tenant (the student signing below), facilitated by RentalHub Nigeria.
+This Tenancy Agreement ("Agreement") is entered into between the Landlord (the owner of the property listed on RentalHub) and the Tenant (the student signing below), facilitated by RentalHub.
 
 1. TERM & RENT
    a. The tenancy commences on the agreed move-in date and runs for the lease period specified at booking.
@@ -241,7 +241,7 @@ This Tenancy Agreement ("Agreement") is entered into between the Landlord (the o
 2. PERMITTED USE
    a. The property is for residential use by the Tenant only.
    b. The Tenant shall not use the property for any commercial, illegal, or immoral purposes.
-   c. The Tenant shall not use the property to host gambling, drug use, or any activity prohibited by Nigerian law.
+   c. The Tenant shall not use the property to host gambling, drug use, or any activity prohibited by applicable law.
 
 3. NO SUBLETTING
    a. The Tenant shall not sublet, assign, or transfer the tenancy or any part of the property to any other person without prior written consent from the Landlord.
@@ -304,13 +304,13 @@ This Tenancy Agreement ("Agreement") is entered into between the Landlord (the o
 
 16. DISPUTE RESOLUTION
     a. Any disputes arising from this tenancy shall first be attempted to be resolved amicably between both parties.
-    b. RentalHub Nigeria may be engaged as a neutral mediator.
-    c. If unresolved, disputes shall be governed by the laws of the Federal Republic of Nigeria.
+    b. RentalHub may be engaged as a neutral mediator.
+    c. If unresolved, disputes shall be governed by applicable local laws.
 
 17. ACKNOWLEDGEMENT
     By signing this Agreement, the Tenant confirms they have read, understood, and agreed to all the above terms and conditions. The Tenant also confirms that the information provided during registration is accurate and truthful.
 
-RentalHub Nigeria acts solely as a facilitating platform and is not a party to this tenancy agreement.
+RentalHub acts solely as a facilitating platform and is not a party to this tenancy agreement.
 `.trim();
 
 function TenancyAgreementModal({

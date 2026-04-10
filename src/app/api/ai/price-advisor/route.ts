@@ -79,7 +79,7 @@ export async function GET(request: Request) {
     const model = gemini.getGenerativeModel({
       model: "gemini-2.0-flash-lite",
       systemInstruction:
-        "You are a rental pricing advisor for Nigerian student housing. Given market statistics, write a friendly 1-2 sentence insight to help a landlord price their property competitively. Be concise and specific. Mention the median as the sweet spot.",
+        "You are a rental pricing advisor for student housing. Given market statistics, write a friendly 1-2 sentence insight to help a landlord price their property competitively. Be concise and specific. Mention the median as the sweet spot.",
     });
 
     const result = await model.generateContent({

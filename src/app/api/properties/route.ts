@@ -11,6 +11,7 @@ import type { PropertyStatus, VerificationStatus } from '@prisma/client';
 import { SCHOOL_LOCATION_KEYWORDS } from '@/lib/schools';
 import gemini from '@/lib/gemini';
 import { notifyRole, notifyUser } from '@/lib/notifications';
+import { sanitizeHttpUrlArray, sanitizeStringArray, sanitizeText } from '@/lib/sanitize';
 
 // ── GET — Browse approved properties ─────────────────────
 
@@ -144,7 +145,8 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!Array.isArray(images) || images.length === 0) {
+    const safeImages = sanitizeHttpUrlArray(images);
+    if (safeImages.length === 0) {
       return NextResponse.json(
         { success: false, error: 'At least one uploaded property image is required.' },
         { status: 400 },
@@ -158,6 +160,23 @@ export async function POST(request: Request) {
       );
     }
 
+    const safeTitle = sanitizeText(title, 200);
+    const safeDescription = sanitizeText(description, 5000);
+    const safeAmenities = sanitizeStringArray(amenities);
+    const parsedPrice = Number(price);
+    const parsedDistance = distanceToCampus ? Number(distanceToCampus) : null;
+    const parsedVacantUnits = vacantUnits !== undefined ? Number(vacantUnits) : 1;
+
+    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+      return NextResponse.json({ success: false, error: "Price must be a valid number greater than 0." }, { status: 400 });
+    }
+    if (parsedDistance !== null && (!Number.isFinite(parsedDistance) || parsedDistance < 0)) {
+      return NextResponse.json({ success: false, error: "Distance to campus must be a valid number." }, { status: 400 });
+    }
+    if (!Number.isInteger(parsedVacantUnits) || parsedVacantUnits < 1) {
+      return NextResponse.json({ success: false, error: "Vacant units must be at least 1." }, { status: 400 });
+    }
+
     let resolvedLocationId: string;
     if (locationId) {
       const locationExists = await prisma.location.findUnique({ where: { id: locationId } });
@@ -166,7 +185,7 @@ export async function POST(request: Request) {
       }
       resolvedLocationId = locationExists.id;
     } else {
-      const normalizedLocationName = String(locationName).trim();
+      const normalizedLocationName = sanitizeText(String(locationName), 120);
       const location = await prisma.location.upsert({
         where: { name: normalizedLocationName },
         update: {},
@@ -187,10 +206,10 @@ export async function POST(request: Request) {
         const model = gemini.getGenerativeModel({
           model: 'gemini-2.0-flash-lite',
           systemInstruction:
-            'You are a fraud detection assistant for a Nigerian student housing platform. Analyze property listing text for scam signals commonly seen in Nigeria advance-fee fraud, particularly targeting students. Check for: urgency pressure ("pay now or lose it", "only today"), requests to pay via WhatsApp or personal bank transfer instead of platform, suspiciously low prices far below market rate for Nigerian student housing, promises that seem too good to be true, requests for advance payment before viewing, threats or emotional manipulation, unrealistic claims (mansion for ₦10k/month). Respond ONLY with valid JSON: { "flagged": boolean, "confidence": "low"|"medium"|"high", "reasons": string[] }. If not flagged, reasons should be empty array.',
+            'You are a fraud detection assistant for a student housing platform. Analyze property listing text for scam signals, particularly advance-fee fraud targeting students. Check for: urgency pressure ("pay now or lose it", "only today"), requests to pay via WhatsApp or personal bank transfer instead of platform, suspiciously low prices far below market rate for student housing, promises that seem too good to be true, requests for advance payment before viewing, threats or emotional manipulation, unrealistic claims (mansion for ₦10k/month). Respond ONLY with valid JSON: { "flagged": boolean, "confidence": "low"|"medium"|"high", "reasons": string[] }. If not flagged, reasons should be empty array.',
         });
         const result = await model.generateContent({
-          contents: [{ role: 'user', parts: [{ text: `Title: ${title}\nDescription: ${description}` }] }],
+              contents: [{ role: 'user', parts: [{ text: `Title: ${safeTitle}\nDescription: ${safeDescription}` }] }],
           generationConfig: { maxOutputTokens: 300 },
         });
         const raw = result.response.text().replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
@@ -216,16 +235,16 @@ export async function POST(request: Request) {
 
     const property = await prisma.property.create({
       data: {
-        title:            title.trim(),
-        description:      description.trim(),
-        price,
+        title:            safeTitle,
+        description:      safeDescription,
+        price:            parsedPrice,
         locationId:       resolvedLocationId,
         landlordId:       session.user.id,
-        distanceToCampus: distanceToCampus ? Number(distanceToCampus) : null,
-        amenities,
-        images,
+        distanceToCampus: parsedDistance,
+        amenities:        safeAmenities,
+        images:           safeImages,
         status:           'PENDING',
-        vacantUnits:      vacantUnits !== undefined ? Number(vacantUnits) : 1,
+        vacantUnits:      parsedVacantUnits,
         aiScamFlag,
         aiScamReason,
       },

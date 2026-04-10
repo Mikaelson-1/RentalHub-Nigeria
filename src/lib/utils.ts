@@ -38,7 +38,7 @@ export function cn(...inputs: ClassValue[]): string {
   return classes.join(' ').replace(/\s+/g, ' ').trim();
 }
 
-/** Format a number as Nigerian Naira */
+/** Format a number as Naira */
 export function formatNaira(amount: number | string | { toNumber: () => number }): string {
   const num =
     typeof amount === 'object' && 'toNumber' in amount

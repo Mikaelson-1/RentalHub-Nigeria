@@ -13,8 +13,8 @@ export const metadata: Metadata = {
     template: "%s | RentalHub",
   },
   description:
-    "Find verified off-campus accommodation for Nigerian students. Browse properties near BOUESTI, book rooms, and manage your listings.",
-  keywords: ["student accommodation", "off-campus housing", "BOUESTI", "Nigeria student housing", "rental", "RentalHub"],
+    "Find verified off-campus accommodation for students. Browse properties near BOUESTI, book rooms, and manage your listings.",
+  keywords: ["student accommodation", "off-campus housing", "BOUESTI", "student housing", "rental", "RentalHub"],
   authors: [{ name: "RentalHub" }],
   alternates: {
     canonical: "https://rentalhub.ng",
@@ -36,13 +36,13 @@ export const metadata: Metadata = {
     siteName: "RentalHub",
     title: "RentalHub - Off-Campus Accommodation",
     description:
-      "Find verified off-campus accommodation for Nigerian students. Browse properties near BOUESTI, book rooms, and manage your listings.",
+      "Find verified off-campus accommodation for students. Browse properties near BOUESTI, book rooms, and manage your listings.",
     images: [{ url: "/logo.png", width: 670, height: 338, alt: "RentalHub" }],
   },
   twitter: {
     card: "summary",
     title: "RentalHub - Off-Campus Accommodation",
-    description: "Find verified off-campus accommodation for Nigerian students.",
+    description: "Find verified off-campus accommodation for students.",
     images: ["/logo.png"],
   },
   robots: {
