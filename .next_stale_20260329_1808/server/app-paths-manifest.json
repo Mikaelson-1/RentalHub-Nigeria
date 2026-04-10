@@ -1,0 +1,22 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/auth/register/route": "app/api/auth/register/route.js",
+  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
+  "/api/properties/[id]/status/route": "app/api/properties/[id]/status/route.js",
+  "/api/properties/route": "app/api/properties/route.js",
+  "/api/locations/route": "app/api/locations/route.js",
+  "/api/bookings/route": "app/api/bookings/route.js",
+  "/pending-approval/page": "app/pending-approval/page.js",
+  "/(dashboards)/landlord/add-property/page": "app/(dashboards)/landlord/add-property/page.js",
+  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/(auth)/register/page": "app/(auth)/register/page.js",
+  "/(auth)/forgot-password/page": "app/(auth)/forgot-password/page.js",
+  "/(public)/page": "app/(public)/page.js",
+  "/(dashboards)/admin/page": "app/(dashboards)/admin/page.js",
+  "/(public)/privacy/page": "app/(public)/privacy/page.js",
+  "/(public)/terms/page": "app/(public)/terms/page.js",
+  "/(dashboards)/landlord/page": "app/(dashboards)/landlord/page.js",
+  "/(dashboards)/student/page": "app/(dashboards)/student/page.js",
+  "/(public)/properties/page": "app/(public)/properties/page.js",
+  "/(public)/properties/[id]/page": "app/(public)/properties/[id]/page.js"
+}

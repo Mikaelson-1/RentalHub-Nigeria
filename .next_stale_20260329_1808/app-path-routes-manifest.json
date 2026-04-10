@@ -1,0 +1,22 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/api/auth/register/route": "/api/auth/register",
+  "/api/auth/[...nextauth]/route": "/api/auth/[...nextauth]",
+  "/api/properties/[id]/status/route": "/api/properties/[id]/status",
+  "/api/properties/route": "/api/properties",
+  "/api/locations/route": "/api/locations",
+  "/api/bookings/route": "/api/bookings",
+  "/pending-approval/page": "/pending-approval",
+  "/(dashboards)/landlord/add-property/page": "/landlord/add-property",
+  "/(auth)/login/page": "/login",
+  "/(auth)/register/page": "/register",
+  "/(auth)/forgot-password/page": "/forgot-password",
+  "/(public)/page": "/",
+  "/(dashboards)/admin/page": "/admin",
+  "/(public)/privacy/page": "/privacy",
+  "/(public)/terms/page": "/terms",
+  "/(dashboards)/landlord/page": "/landlord",
+  "/(dashboards)/student/page": "/student",
+  "/(public)/properties/page": "/properties",
+  "/(public)/properties/[id]/page": "/properties/[id]"
+}

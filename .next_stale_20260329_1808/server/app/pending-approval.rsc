@@ -1,0 +1,18 @@
+1:"$Sreact.fragment"
+2:I[2926,["108","static/chunks/108-9c8c92705722be29.js","177","static/chunks/app/layout-1d41c6e41145ac12.js"],"default"]
+3:I[7555,[],""]
+4:I[1295,[],""]
+5:I[894,[],"ClientPageRoot"]
+6:I[8144,["874","static/chunks/874-f153c01391b3d8d9.js","102","static/chunks/app/pending-approval/page-90a5423fbc433889.js"],"default"]
+9:I[9665,[],"OutletBoundary"]
+c:I[9665,[],"ViewportBoundary"]
+e:I[9665,[],"MetadataBoundary"]
+10:I[6614,[],""]
+:HL["/_next/static/css/7ebb30f3653d67ba.css","style"]
+0:{"P":null,"b":"Td2Gia7wa8TjvgBoc9o5i","p":"","c":["","pending-approval"],"i":false,"f":[[["",{"children":["pending-approval",{"children":["__PAGE__",{}]}]},"$undefined","$undefined",true],["",["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/_next/static/css/7ebb30f3653d67ba.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}]],["$","html",null,{"lang":"en","children":["$","body",null,{"className":"font-sans overflow-x-hidden","children":["$","$L2",null,{"children":["$","div",null,{"className":"min-h-screen flex flex-col","children":["$","$L3",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L4",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[[["$","title",null,{"children":"404: This page could not be found."}],["$","div",null,{"style":{"fontFamily":"system-ui,\"Segoe UI\",Roboto,Helvetica,Arial,sans-serif,\"Apple Color Emoji\",\"Segoe UI Emoji\"","height":"100vh","textAlign":"center","display":"flex","flexDirection":"column","alignItems":"center","justifyContent":"center"},"children":["$","div",null,{"children":[["$","style",null,{"dangerouslySetInnerHTML":{"__html":"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}"}}],["$","h1",null,{"className":"next-error-h1","style":{"display":"inline-block","margin":"0 20px 0 0","padding":"0 23px 0 0","fontSize":24,"fontWeight":500,"verticalAlign":"top","lineHeight":"49px"},"children":404}],["$","div",null,{"style":{"display":"inline-block"},"children":["$","h2",null,{"style":{"fontSize":14,"fontWeight":400,"lineHeight":"49px","margin":0},"children":"This page could not be found."}]}]]}]}]],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]}]}]}]}]]}],{"children":["pending-approval",["$","$1","c",{"children":[null,["$","$L3",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L4",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]]}],{"children":["__PAGE__",["$","$1","c",{"children":[["$","$L5",null,{"Component":"$6","searchParams":{},"params":{},"promises":["$@7","$@8"]}],"$undefined",null,["$","$L9",null,{"children":["$La","$Lb",null]}]]}],{},null,false]},null,false]},null,false],["$","$1","h",{"children":[null,["$","$1","E3obRtRawbvWCyXEmsamR",{"children":[["$","$Lc",null,{"children":"$Ld"}],null]}],["$","$Le",null,{"children":"$Lf"}]]}],false]],"m":"$undefined","G":["$10","$undefined"],"s":false,"S":true}
+7:{}
+8:{}
+d:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]
+a:null
+b:null
+f:[["$","title","0",{"children":"RentalHub NG - Off-Campus Accommodation"}],["$","meta","1",{"name":"description","content":"Find quality off-campus accommodation for Nigerian students. Browse properties, book rooms, and manage your listings."}]]
