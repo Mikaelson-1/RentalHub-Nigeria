@@ -562,14 +562,14 @@ function StudentDashboardInner() {
 
   return (
     <div>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-navy">Student Dashboard</h1>
-          <p className="text-gray-600 mt-1">Browse properties and manage your bookings</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-navy">Student Dashboard</h1>
+          <p className="text-gray-600 mt-1 text-sm">Browse properties and manage your bookings</p>
         </div>
         <Link
           href="/student/profile"
-          className="border border-gray-300 hover:border-gray-400 text-gray-700 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors"
+          className="self-start sm:self-auto border border-gray-300 hover:border-gray-400 text-gray-700 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors"
         >
           My Profile
         </Link>

@@ -505,12 +505,12 @@ export default function AddPropertyForm() {
                 const Icon = step.icon;
                 const isActive = step.id === currentStep;
                 const isCompleted = step.id < currentStep;
-                
+
                 return (
                   <div key={step.id} className="flex items-center flex-1">
                     <div className="flex flex-col items-center">
                       <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+                        className={`w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-colors ${
                           isActive
                             ? "bg-orange-500 text-white"
                             : isCompleted
@@ -519,14 +519,19 @@ export default function AddPropertyForm() {
                         }`}
                       >
                         {isCompleted ? (
-                          <Check className="w-6 h-6" />
+                          <Check className="w-4 h-4 sm:w-6 sm:h-6" />
                         ) : (
-                          <Icon className="w-5 h-5" />
+                          <Icon className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
                         )}
                       </div>
+                      {/* Step label: show only active/completed label on mobile to save space */}
                       <span
-                        className={`mt-2 text-xs font-medium ${
-                          isActive ? "text-orange-500" : isCompleted ? "text-gray-900" : "text-gray-400"
+                        className={`mt-1.5 text-xs font-medium text-center leading-tight max-w-[60px] sm:max-w-none ${
+                          isActive
+                            ? "text-orange-500"
+                            : isCompleted
+                            ? "text-gray-900"
+                            : "text-gray-400 hidden sm:block"
                         }`}
                       >
                         {step.name}
@@ -534,7 +539,7 @@ export default function AddPropertyForm() {
                     </div>
                     {index < steps.length - 1 && (
                       <div
-                        className={`flex-1 h-1 mx-4 transition-colors ${
+                        className={`flex-1 h-1 mx-2 sm:mx-4 transition-colors ${
                           isCompleted ? "bg-gray-900" : "bg-gray-200"
                         }`}
                       />
@@ -543,12 +548,16 @@ export default function AddPropertyForm() {
                 );
               })}
             </div>
+            {/* Mobile: show current step name below stepper */}
+            <p className="sm:hidden text-center text-sm font-medium text-orange-500 mt-3">
+              Step {currentStep} of {steps.length}: {steps[currentStep - 1].name}
+            </p>
           </div>
 
           {/* Form Card */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             {/* Step Header */}
-            <div className="bg-gray-50 px-8 py-6 border-b border-gray-200">
+            <div className="bg-gray-50 px-4 py-4 sm:px-8 sm:py-6 border-b border-gray-200">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
                   <StepIcon className="w-5 h-5 text-white" />
@@ -564,7 +573,7 @@ export default function AddPropertyForm() {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="p-8">
+            <form onSubmit={handleSubmit(onSubmit)} className="p-4 sm:p-8">
               {listingLocked && (
                 <p className="mb-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
                   Listing is locked until your landlord verification is approved by admin.

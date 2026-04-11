@@ -11,7 +11,29 @@ import type { PropertyStatus, VerificationStatus } from '@prisma/client';
 import { SCHOOL_LOCATION_KEYWORDS } from '@/lib/schools';
 import gemini from '@/lib/gemini';
 import { notifyRole, notifyUser } from '@/lib/notifications';
-import { sanitizeHttpUrlArray, sanitizeStringArray, sanitizeText } from '@/lib/sanitize';
+import { sanitizeHttpUrl, sanitizeStringArray, sanitizeText } from '@/lib/sanitize';
+
+/**
+ * Accept either plain URL strings or the rich upload payloads that
+ * AddPropertyForm sends: { name, type, mimeType, size, url }.
+ * Validates each URL and preserves the full object so the DB stores the
+ * type metadata needed to distinguish image vs video vs document uploads.
+ */
+function sanitizeImagePayloads(items: unknown): Array<string | Record<string, unknown>> {
+  if (!Array.isArray(items)) return [];
+  const result: Array<string | Record<string, unknown>> = [];
+  for (const item of items) {
+    if (typeof item === 'string') {
+      const url = sanitizeHttpUrl(item);
+      if (url) result.push(url);
+    } else if (typeof item === 'object' && item !== null && 'url' in item) {
+      const typed = item as Record<string, unknown>;
+      const url = sanitizeHttpUrl(typed.url);
+      if (url) result.push({ ...typed, url });
+    }
+  }
+  return result;
+}
 
 // ── GET — Browse approved properties ─────────────────────
 
@@ -145,7 +167,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const safeImages = sanitizeHttpUrlArray(images);
+    const safeImages = sanitizeImagePayloads(images);
     if (safeImages.length === 0) {
       return NextResponse.json(
         { success: false, error: 'At least one uploaded property image is required.' },
@@ -242,7 +264,7 @@ export async function POST(request: Request) {
         landlordId:       session.user.id,
         distanceToCampus: parsedDistance,
         amenities:        safeAmenities,
-        images:           safeImages,
+        images:           safeImages as never,
         status:           'PENDING',
         vacantUnits:      parsedVacantUnits,
         aiScamFlag,
