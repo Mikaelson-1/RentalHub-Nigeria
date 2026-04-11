@@ -35,3 +35,30 @@ export function sanitizeStringArray(items: unknown[]): string[] {
     .filter((item): item is string => typeof item === 'string')
     .map((item) => sanitizeText(item, 200));
 }
+
+/**
+ * Allow only http/https URLs.
+ * Rejects javascript:, data:, file:, and malformed values.
+ */
+export function sanitizeHttpUrl(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return null;
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+export function sanitizeHttpUrlArray(values: unknown): string[] {
+  if (!Array.isArray(values)) return [];
+  return values
+    .map((value) => sanitizeHttpUrl(value))
+    .filter((value): value is string => Boolean(value));
+}

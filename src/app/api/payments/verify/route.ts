@@ -36,6 +36,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: "Payment was not successful.", data: { paymentStatus: "FAILED" } }, { status: 400 });
     }
 
+    const metadataBookingId = verifyData?.data?.metadata?.bookingId as string | undefined;
+    if (metadataBookingId && metadataBookingId !== bookingId) {
+      return NextResponse.json({ success: false, error: "Payment reference does not match this booking." }, { status: 400 });
+    }
+
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
@@ -50,6 +55,16 @@ export async function GET(request: Request) {
     });
 
     if (!booking) return NextResponse.json({ success: false, error: "Booking not found." }, { status: 404 });
+    const paymentRecord = await prisma.payment.findFirst({
+      where: {
+        bookingId,
+        paystackRef: reference,
+      },
+      select: { id: true },
+    });
+    if (!paymentRecord) {
+      return NextResponse.json({ success: false, error: "Invalid payment reference for this booking." }, { status: 400 });
+    }
     if (session.user.role === "STUDENT" && booking.studentId !== session.user.id) {
       return NextResponse.json({ success: false, error: "You are not allowed to verify this booking payment." }, { status: 403 });
     }

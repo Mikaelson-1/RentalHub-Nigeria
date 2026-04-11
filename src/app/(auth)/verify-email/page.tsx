@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
-import { signIn } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useMemo, useState } from "react";
 
 function VerifyEmailContent() {
-  const router = useRouter();
   const params = useSearchParams();
 
   const initialEmail = useMemo(() => params.get("email") ?? "", [params]);
@@ -17,22 +15,6 @@ function VerifyEmailContent() {
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
-  const [pendingPassword, setPendingPassword] = useState("");
-
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem("pendingSignupAuth");
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as { email?: string; password?: string; createdAt?: number };
-      if (!parsed?.email || !parsed?.password || !parsed?.createdAt) return;
-      const isFresh = Date.now() - parsed.createdAt < 1000 * 60 * 30; // 30 min
-      if (isFresh && parsed.email.toLowerCase() === email.toLowerCase().trim()) {
-        setPendingPassword(parsed.password);
-      }
-    } catch {
-      // no-op
-    }
-  }, [email]);
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -52,34 +34,6 @@ function VerifyEmailContent() {
       }
       setSuccess(payload.message || "Email verified successfully.");
       setIsVerified(true);
-
-      if (pendingPassword) {
-        const signInResult = await signIn("credentials", {
-          email: email.toLowerCase().trim(),
-          password: pendingPassword,
-          redirect: false,
-        });
-
-        if (signInResult?.ok) {
-          try {
-            sessionStorage.removeItem("pendingSignupAuth");
-          } catch {
-            // no-op
-          }
-          const sessionResponse = await fetch("/api/auth/session");
-          const session = await sessionResponse.json();
-          const role = session?.user?.role as string | undefined;
-          if (role === "LANDLORD") {
-            router.push("/landlord");
-          } else if (role === "ADMIN") {
-            router.push("/admin");
-          } else {
-            router.push("/student");
-          }
-          router.refresh();
-          return;
-        }
-      }
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Failed to verify OTP.");
     } finally {

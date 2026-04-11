@@ -4,7 +4,7 @@
  * Add this URL in Paystack Dashboard → Settings → Webhooks
  */
 import { NextResponse } from "next/server";
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import prisma from "@/lib/prisma";
 import { sendPaymentConfirmedToStudent, sendPaymentReceivedToLandlord } from "@/lib/email";
 import { notifyUser } from "@/lib/notifications";
@@ -16,10 +16,15 @@ export async function POST(request: Request) {
     const rawBody = await request.text();
     const signature = request.headers.get("x-paystack-signature");
     const secret = process.env.PAYSTACK_SECRET_KEY ?? "";
+    if (!secret || !signature) {
+      return NextResponse.json({ error: "Missing webhook signature configuration." }, { status: 401 });
+    }
 
     // Verify webhook signature
     const hash = createHmac("sha512", secret).update(rawBody).digest("hex");
-    if (hash !== signature) {
+    const hashBuffer = Buffer.from(hash, "hex");
+    const signatureBuffer = Buffer.from(signature, "hex");
+    if (hashBuffer.length !== signatureBuffer.length || !timingSafeEqual(hashBuffer, signatureBuffer)) {
       console.error("[WEBHOOK] Invalid Paystack signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }

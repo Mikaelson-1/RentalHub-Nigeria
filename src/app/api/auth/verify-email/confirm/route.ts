@@ -21,8 +21,19 @@ export async function POST(request: Request) {
     if (!email || typeof email !== "string" || !otp || typeof otp !== "string") {
       return NextResponse.json({ success: false, error: "Email and OTP are required." }, { status: 400 });
     }
+    const normalizedEmail = email.trim().toLowerCase();
+    const emailRl = rateLimit(`verify-email-confirm:${normalizedEmail}`, {
+      limit: 8,
+      windowSeconds: 15 * 60,
+    });
+    if (!emailRl.success) {
+      return NextResponse.json(
+        { success: false, error: `Too many attempts. Try again in ${emailRl.retryAfter} seconds.` },
+        { status: 429 },
+      );
+    }
 
-    const result = await verifyEmailOtp(email, otp);
+    const result = await verifyEmailOtp(normalizedEmail, otp);
     if (!result.success) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }
@@ -48,4 +59,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "Failed to verify email." }, { status: 500 });
   }
 }
-

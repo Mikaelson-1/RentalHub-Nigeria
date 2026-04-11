@@ -29,6 +29,19 @@ const isVideoFile = (mediaItem: MediaItem) =>
 const isImageFile = (mediaItem: MediaItem) =>
   mediaItem.type === "image" || mediaItem.mimeType?.startsWith("image/");
 
+const safeHttpUrl = (url: string | undefined): string | undefined => {
+  if (!url) return undefined;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+      return parsed.toString();
+    }
+  } catch {
+    // noop
+  }
+  return undefined;
+};
+
 export default async function AdminPropertyReviewPage({ params }: AdminPropertyReviewPageProps) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -78,7 +91,7 @@ export default async function AdminPropertyReviewPage({ params }: AdminPropertyR
         id: `media-${index}`,
         type: "image",
         name: `image-${index + 1}`,
-        url: item,
+        url: safeHttpUrl(item),
       };
     }
 
@@ -94,7 +107,7 @@ export default async function AdminPropertyReviewPage({ params }: AdminPropertyR
         id: `media-${index}`,
         type: typedItem.type || "file",
         name: typedItem.name || `file-${index + 1}`,
-        url: typedItem.url,
+        url: safeHttpUrl(typedItem.url),
         mimeType: typedItem.mimeType,
         size: typedItem.size,
       };

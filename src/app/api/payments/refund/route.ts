@@ -30,6 +30,12 @@ export async function POST(request: Request) {
     if (session.user.role === "STUDENT" && booking.studentId !== session.user.id) {
       return NextResponse.json({ success: false, error: "Not your booking." }, { status: 403 });
     }
+    if (session.user.role === "LANDLORD" && booking.property.landlordId !== session.user.id) {
+      return NextResponse.json({ success: false, error: "Not your listing." }, { status: 403 });
+    }
+    if (!["STUDENT", "LANDLORD", "ADMIN"].includes(session.user.role)) {
+      return NextResponse.json({ success: false, error: "Not authorized to refund this booking." }, { status: 403 });
+    }
     if (booking.paymentStatus !== "SUCCESS") {
       return NextResponse.json({ success: false, error: "No successful payment to refund." }, { status: 400 });
     }

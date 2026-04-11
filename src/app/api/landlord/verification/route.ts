@@ -12,6 +12,7 @@ import {
   sendVerificationSubmittedToAdmin,
 } from "@/lib/email";
 import { notifyRole, notifyUser } from "@/lib/notifications";
+import { sanitizeHttpUrl, sanitizeText } from "@/lib/sanitize";
 
 export async function GET() {
   try {
@@ -98,15 +99,26 @@ export async function POST(request: Request) {
       );
     }
 
+    const safeGovernmentIdUrl = sanitizeHttpUrl(governmentIdUrl);
+    const safeSelfieUrl = sanitizeHttpUrl(selfieUrl);
+    const safeOwnershipProofUrl = sanitizeHttpUrl(ownershipProofUrl);
+
+    if (!safeGovernmentIdUrl || !safeSelfieUrl || !safeOwnershipProofUrl) {
+      return NextResponse.json(
+        { success: false, error: "Invalid document URL provided. Please re-upload your files." },
+        { status: 400 },
+      );
+    }
+
     const updated = await prisma.user.update({
       where: { id: session.user.id },
       data:  {
-        phoneNumber:             phoneNumber.trim(),
-        governmentIdUrl,
-        selfieUrl,
+        phoneNumber:             sanitizeText(phoneNumber, 25),
+        governmentIdUrl:         safeGovernmentIdUrl,
+        selfieUrl:               safeSelfieUrl,
         isDirectOwner,
         landlordAware:           isDirectOwner ? true : !!landlordAware,
-        ownershipProofUrl,
+        ownershipProofUrl:       safeOwnershipProofUrl,
         verificationStatus:      "UNDER_REVIEW",
         verificationNote:        null, // clear any previous rejection note
         verificationSubmittedAt: new Date(),

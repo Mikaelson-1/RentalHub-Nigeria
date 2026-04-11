@@ -23,6 +23,16 @@ export async function POST(request: Request) {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
+    const emailRl = rateLimit(`verify-email-send:${normalizedEmail}`, {
+      limit: 3,
+      windowSeconds: 15 * 60,
+    });
+    if (!emailRl.success) {
+      return NextResponse.json(
+        { success: false, error: `Too many requests. Try again in ${emailRl.retryAfter} seconds.` },
+        { status: 429 },
+      );
+    }
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
       select: { id: true, name: true, email: true, emailVerified: true },
@@ -33,7 +43,7 @@ export async function POST(request: Request) {
     }
 
     if (user.emailVerified) {
-      return NextResponse.json({ success: true, message: "This email is already verified." });
+      return NextResponse.json({ success: true, message: "If your account exists, an OTP has been sent." });
     }
 
     const otp = await createEmailOtp(user.id, user.email);

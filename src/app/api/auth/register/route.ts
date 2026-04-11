@@ -104,8 +104,11 @@ export async function POST(request: Request) {
         );
       }
       return NextResponse.json(
-        { success: false, error: 'An account with this email already exists.' },
-        { status: 409 },
+        {
+          success: true,
+          message: "If your account exists, continue to login or verify email.",
+        },
+        { status: 200 },
       );
     }
 
@@ -175,8 +178,8 @@ export async function POST(request: Request) {
     // Duplicate unique key, usually email race-condition.
     if (code === 'P2002' || inferredCode === 'P2002') {
       return NextResponse.json(
-        { success: false, error: 'An account with this email already exists.' },
-        { status: 409 },
+        { success: true, message: "If your account exists, continue to login or verify email." },
+        { status: 200 },
       );
     }
 

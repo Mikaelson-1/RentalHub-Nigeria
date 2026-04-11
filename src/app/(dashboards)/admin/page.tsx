@@ -148,6 +148,19 @@ const initialSummary: AdminSummary = {
   totalBookings: 0,
 };
 
+function safeHttpUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+      return parsed.toString();
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export default function AdminDashboard() {
   const [selectedSchool, setSelectedSchool] = useState<string>("ALL");
   const [summary, setSummary] = useState<AdminSummary>(initialSummary);
@@ -385,6 +398,9 @@ export default function AdminDashboard() {
 
   const LandlordCard = ({ landlord, showApproveReject }: { landlord: VerificationLandlord; showApproveReject: boolean }) => {
     const isUpdating = verificationUpdatingId === landlord.id;
+    const safeGovernmentIdUrl = safeHttpUrl(landlord.governmentIdUrl);
+    const safeSelfieUrl = safeHttpUrl(landlord.selfieUrl);
+    const safeOwnershipProofUrl = safeHttpUrl(landlord.ownershipProofUrl);
     return (
       <div className="border border-gray-200 rounded-xl p-5 bg-white">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
@@ -404,20 +420,20 @@ export default function AdminDashboard() {
               <p className="text-xs text-gray-400 mt-1 italic">&quot;{landlord.aiPreScreenNote}&quot;</p>
             )}
             <div className="flex flex-wrap gap-3 mt-3">
-              {landlord.governmentIdUrl ? (
-                <a href={landlord.governmentIdUrl} target="_blank" rel="noopener noreferrer"
+              {safeGovernmentIdUrl ? (
+                <a href={safeGovernmentIdUrl} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg font-medium transition-colors">
                   📄 View Gov ID
                 </a>
               ) : <span className="text-xs text-gray-400 italic">No Gov ID uploaded</span>}
-              {landlord.selfieUrl ? (
-                <a href={landlord.selfieUrl} target="_blank" rel="noopener noreferrer"
+              {safeSelfieUrl ? (
+                <a href={safeSelfieUrl} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg font-medium transition-colors">
                   🤳 View Selfie
                 </a>
               ) : <span className="text-xs text-gray-400 italic">No selfie uploaded</span>}
-              {landlord.ownershipProofUrl ? (
-                <a href={landlord.ownershipProofUrl} target="_blank" rel="noopener noreferrer"
+              {safeOwnershipProofUrl ? (
+                <a href={safeOwnershipProofUrl} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg font-medium transition-colors">
                   🏠 View Ownership Proof
                 </a>

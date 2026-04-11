@@ -252,8 +252,8 @@ export default function VerificationPage() {
                           : "border-gray-200 hover:border-gray-300"
                       }`}
                     >
-                      <p className="font-medium text-sm text-gray-900" dangerouslySetInnerHTML={{ __html: label }} />
-                      <p className="text-xs text-gray-400 mt-0.5" dangerouslySetInnerHTML={{ __html: desc }} />
+                      <p className="font-medium text-sm text-gray-900">{label.replaceAll("&apos;", "'")}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{desc.replaceAll("&apos;", "'")}</p>
                     </button>
                   ))}
                 </div>

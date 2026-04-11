@@ -58,18 +58,6 @@ export default function RegisterPage() {
 
       if (response.ok && result?.success) {
         setSuccess(result.message || "Account created successfully!");
-        try {
-          sessionStorage.setItem(
-            "pendingSignupAuth",
-            JSON.stringify({
-              email: formData.email.toLowerCase().trim(),
-              password: formData.password,
-              createdAt: Date.now(),
-            }),
-          );
-        } catch {
-          // no-op
-        }
         setTimeout(() => {
           const verifyUrl = `/verify-email?email=${encodeURIComponent(formData.email.toLowerCase().trim())}`;
           router.push(verifyUrl);
