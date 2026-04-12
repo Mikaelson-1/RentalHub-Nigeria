@@ -135,7 +135,7 @@ export async function POST(request: Request) {
     // ✅ Upload to Vercel Blob (always public access)
     // Security comes from not exposing URLs, not from storage itself
     // The file URL is stored in database and only served via /api/files/[path] with auth checks
-    const blob = await put(blobPath, bytes, {
+    await put(blobPath, bytes, {
       access: "public", // Vercel Blob requires public access
       contentType: file.type,
     });
