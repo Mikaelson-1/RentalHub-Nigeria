@@ -10,13 +10,13 @@ import { Building2 } from "lucide-react";
 export const revalidate = 3600; // ISR: cache for 1 hour, revalidate on-demand via API
 
 export const metadata: Metadata = {
-  title: "Verified Student Housing Near BOUESTI",
+  title: "Verified Off-Campus Accommodation in Nigeria",
   description:
-    "Browse verified off-campus apartments, self-contains, and rooms near BOUESTI. Book directly with trusted landlords — no agent fees.",
+    "Browse verified off-campus apartments, self-contains, and rooms for students across Nigeria. Book directly with trusted landlords — no agent fees.",
   openGraph: {
-    title: "RentalHub — Verified Student Housing Near BOUESTI",
+    title: "RentalHub — Verified Off-Campus Accommodation in Nigeria",
     description:
-      "Browse verified off-campus apartments, self-contains, and rooms near BOUESTI. Book directly with trusted landlords — no agent fees.",
+      "Browse verified off-campus apartments, self-contains, and rooms for students across Nigeria. Book directly with trusted landlords — no agent fees.",
     url: "https://rentalhub.ng",
   },
 };

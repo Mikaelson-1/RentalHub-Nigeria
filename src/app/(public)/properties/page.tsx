@@ -10,11 +10,11 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Available Properties",
   description:
-    "Browse all verified off-campus accommodation near BOUESTI. Filter by location and find your perfect student room or apartment.",
+    "Browse all verified off-campus accommodation across Nigeria. Filter by location and find your perfect student room or apartment.",
   openGraph: {
     title: "Available Properties | RentalHub",
     description:
-      "Browse all verified off-campus accommodation near BOUESTI. Filter by location and find your perfect student room or apartment.",
+      "Browse all verified off-campus accommodation across Nigeria. Filter by location and find your perfect student room or apartment.",
     url: "https://rentalhub.ng/properties",
   },
 };
@@ -87,7 +87,7 @@ export default async function PropertiesPage({ searchParams }: PropertiesPagePro
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-[#192F59]">Available Properties</h1>
           <p className="text-gray-600 mt-2">
-            Browse verified off-campus accommodation around BOUESTI.
+            Browse verified off-campus accommodation across Nigeria.
           </p>
           {activeFilter && (
             <div className="mt-3 flex items-center gap-3">
