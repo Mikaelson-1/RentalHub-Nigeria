@@ -87,6 +87,7 @@ model User {
   bankName              String?
   bankAccountName       String?  // Auto-resolved by Paystack
   paystackRecipientCode String?  // Paystack transfer recipient code
+  bankChangeAt          DateTime? // V12: timestamp of last bank-detail change (payout quarantine window)
 
   properties         Property[]         @relation("LandlordProperties")
   reviewedProperties Property[]         @relation("PropertyReviews")

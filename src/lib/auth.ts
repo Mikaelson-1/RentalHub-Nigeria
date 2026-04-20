@@ -48,7 +48,12 @@ export const authOptions: NextAuthOptions = {
   // (which conflicts with our custom emailVerified: Boolean field).
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    // V10 fix: reduce idle timeout from 30d → 1d and refresh the JWT every 5
+    // minutes. The jwt callback re-reads role/verificationStatus from Postgres
+    // on each refresh, so admin suspensions / role changes propagate within
+    // ~5 min (for active users) or on next login (for idle users).
+    maxAge: 24 * 60 * 60,          // 1 day
+    updateAge: 5 * 60,             // refresh JWT every 5 min of activity
   },
   pages: {
     signIn: "/login",

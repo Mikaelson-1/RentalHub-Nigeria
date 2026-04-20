@@ -52,6 +52,17 @@ export async function middleware(request: NextRequest) {
   const userRole = token.role as string;
   const verificationStatus = token.verificationStatus as string | undefined;
 
+  // V10 fix: block SUSPENDED users. JWT refreshes every 5 min (see auth.ts),
+  // so suspension takes effect within ~5 min of the admin action.
+  if (verificationStatus === "SUSPENDED") {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("error", "AccountSuspended");
+    const response = NextResponse.redirect(loginUrl);
+    response.cookies.delete("next-auth.session-token");
+    response.cookies.delete("__Secure-next-auth.session-token");
+    return response;
+  }
+
   // Check if user has access to the requested route
   for (const [route, allowedRoles] of Object.entries(routeAccessRules)) {
     if (pathname.startsWith(route)) {

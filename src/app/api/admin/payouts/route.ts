@@ -22,11 +22,24 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "Admin access required." }, { status: 403 });
     }
 
+    // V12 fix: exclude landlords whose bank details changed in the last 24h.
+    // The 24h cool-off lets the landlord respond to the change-notification
+    // email if the change wasn't them.
+    const quarantineCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
     const payouts = await prisma.booking.findMany({
       where: {
         movedInConfirmedAt: { not: null },
         payoutStatus: { in: ["PENDING", "PROCESSING"] },
         status: "PAID",
+        property: {
+          landlord: {
+            OR: [
+              { bankChangeAt: null },
+              { bankChangeAt: { lt: quarantineCutoff } },
+            ],
+          },
+        },
       },
       include: {
         student: { select: { id: true, name: true, email: true } },
@@ -97,6 +110,7 @@ export async function PATCH(request: NextRequest) {
                 email: true,
                 bankName: true,
                 bankAccountName: true,
+                bankChangeAt: true,
               },
             },
           },
@@ -127,6 +141,22 @@ export async function PATCH(request: NextRequest) {
         },
         { status: 409 },
       );
+    }
+
+    // V12 fix: block COMPLETE during the 24h bank-change quarantine. Admin can
+    // still mark FAILED (e.g. to cancel a queued payout they no longer trust).
+    if (action === "COMPLETE" && booking.property.landlord.bankChangeAt) {
+      const msSinceChange = Date.now() - new Date(booking.property.landlord.bankChangeAt).getTime();
+      if (msSinceChange < 24 * 60 * 60 * 1000) {
+        const hoursRemaining = Math.ceil((24 * 60 * 60 * 1000 - msSinceChange) / (60 * 60 * 1000));
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Landlord recently changed their bank account. Payout quarantine ends in ~${hoursRemaining}h.`,
+          },
+          { status: 409 },
+        );
+      }
     }
 
     const newStatus = action === "COMPLETE" ? "COMPLETED" : "FAILED";

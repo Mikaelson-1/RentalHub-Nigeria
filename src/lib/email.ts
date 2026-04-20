@@ -194,6 +194,33 @@ export async function sendEmailVerificationOtp(options: {
 
 // ── Admin Account Event Notifications ───────────────────────────────────────
 
+// V12: notify landlord when their payout bank details are changed.
+// Contains masked account number + support contact for "not me" recovery.
+export async function sendBankAccountChangedEmail(options: {
+  to: string;
+  name: string;
+  bankName: string;
+  maskedAccountNumber: string;
+}) {
+  const { to, name, bankName, maskedAccountNumber } = options;
+
+  await sendMail({
+    to,
+    subject: "RentalHub — payout bank account changed",
+    html: wrap("Bank Account Changed", `
+      <p>Hi <strong>${name}</strong>,</p>
+      <p>Your RentalHub payout bank account was just updated to:</p>
+      <p style="background:#f8fafc;padding:16px;border-radius:8px;font-family:monospace;">
+        ${bankName}<br>
+        Account: ${maskedAccountNumber}
+      </p>
+      <p style="color:#991b1b;"><strong>If this wasn't you</strong>, contact support at
+        <a href="mailto:support@rentalhub.ng" style="color:#E67E22;">support@rentalhub.ng</a> immediately.</p>
+      <p style="color:#475569;font-size:13px;">For your safety, all rent payouts to this landlord account are paused for the next 24 hours while we verify the change.</p>
+    `),
+  });
+}
+
 export async function sendAccountSuspendedEmail(options: {
   to: string;
   name: string;

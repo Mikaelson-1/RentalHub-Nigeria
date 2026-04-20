@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendBankAccountChangedEmail } from "@/lib/email";
 
 export async function GET() {
   try {
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
 
     const recipientCode = recipientData.data.recipient_code;
 
-    // Save to database
+    // V12 fix: save + stamp bankChangeAt (kicks off 24h payout quarantine)
     await prisma.user.update({
       where: { id: session.user.id },
       data: {
@@ -109,12 +110,23 @@ export async function POST(request: NextRequest) {
         bankName,
         bankAccountName: accountName,
         paystackRecipientCode: recipientCode,
+        bankChangeAt: new Date(),
       },
     });
 
+    // V12 fix: notify the landlord out-of-band so a hijacked session leaves
+    // an inbox trail. Fire-and-forget — don't block the response on email.
+    const masked = `•••• •••• ${accountNumber.slice(-4)}`;
+    sendBankAccountChangedEmail({
+      to: landlord.email,
+      name: landlord.name,
+      bankName,
+      maskedAccountNumber: masked,
+    }).catch((err) => console.error("[bank-account] change-notification email failed:", err));
+
     return NextResponse.json({
       success: true,
-      message: "Bank account saved successfully.",
+      message: "Bank account saved. Payouts will resume in 24 hours.",
       data: { accountName, bankName, accountNumber },
     });
   } catch (error) {
