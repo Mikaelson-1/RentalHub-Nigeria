@@ -40,3 +40,8 @@ prisma/migrations/*.sql
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# Security scan artifacts
+nikto.html*
+nuclei.txt
+zap-report.*
