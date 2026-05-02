@@ -7,20 +7,13 @@
  * or construct raw HTML strings.
  */
 
-/** Strip every HTML tag — and the inner content of script/style blocks — from a string. */
-export function stripHtml(raw: string): string {
+function stripHtml(raw: string): string {
   return raw
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
     .replace(/<[^>]*>/g, '');
 }
 
-/**
- * Sanitise a user-supplied string for safe display:
- * – removes HTML tags
- * – trims whitespace
- * – caps length (default 10 000 chars)
- */
 export function sanitizeText(raw: string, maxLength = 10_000): string {
   return stripHtml(raw).trim().slice(0, maxLength);
 }

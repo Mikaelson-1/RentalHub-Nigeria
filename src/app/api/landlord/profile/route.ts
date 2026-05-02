@@ -1,22 +1,15 @@
-/**
- * GET  /api/landlord/profile  — Fetch current landlord's profile
- * PATCH /api/landlord/profile  — Update name, email, or phoneNumber
- */
-
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthenticatedSession, apiError, apiSuccess } from "@/lib/api-utils";
 import prisma from "@/lib/prisma";
+import { UserRole } from "@prisma/client";
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-    }
+    const { session, error, status } = await getAuthenticatedSession(UserRole.LANDLORD);
+    if (error) return apiError(error, status!);
 
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: session!.user.id },
       select: {
         id: true,
         name: true,
@@ -35,61 +28,50 @@ export async function GET() {
       },
     });
 
-    if (!user) {
-      return NextResponse.json({ success: false, error: "User not found." }, { status: 404 });
-    }
-
-    return NextResponse.json({ success: true, data: user });
+    if (!user) return apiError("User not found.", 404);
+    return apiSuccess(user);
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error("[PROFILE GET ERROR]", msg);
-    return NextResponse.json({ success: false, error: "Failed to load profile.", detail: msg }, { status: 500 });
+    return apiError("Failed to load profile.", 500);
   }
 }
 
 export async function PATCH(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-    }
+    const { session, error, status } = await getAuthenticatedSession(UserRole.LANDLORD);
+    if (error) return apiError(error, status!);
 
     const body = await request.json();
     const { name, email, phoneNumber, avatarUrl } = body;
 
-    // Avatar-only update — skip name/email validation, just update the URL
     if (avatarUrl !== undefined && !name && !email && phoneNumber === undefined) {
       const updated = await prisma.user.update({
-        where: { id: session.user.id },
+        where: { id: session!.user.id },
         data: { avatarUrl: avatarUrl || null },
         select: { id: true, name: true, email: true, phoneNumber: true, avatarUrl: true, role: true, verificationStatus: true, createdAt: true },
       });
-      return NextResponse.json({ success: true, data: updated });
+      return apiSuccess(updated);
     }
 
-    // Full profile update — validate name and email
     if (!name?.trim()) {
-      return NextResponse.json({ success: false, error: "Name is required." }, { status: 400 });
+      return apiError("Name is required.", 400);
     }
 
     const normalizedEmail = email?.toLowerCase().trim();
     if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      return NextResponse.json({ success: false, error: "A valid email is required." }, { status: 400 });
+      return apiError("A valid email is required.", 400);
     }
 
-    // Check email uniqueness if changed
-    if (normalizedEmail !== session.user.email) {
+    if (normalizedEmail !== session!.user.email) {
       const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
       if (existing) {
-        return NextResponse.json(
-          { success: false, error: "That email is already in use by another account." },
-          { status: 409 },
-        );
+        return apiError("That email is already in use by another account.", 409);
       }
     }
 
     const updated = await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: session!.user.id },
       data: {
         name: name.trim(),
         email: normalizedEmail,
@@ -108,9 +90,9 @@ export async function PATCH(request: Request) {
       },
     });
 
-    return NextResponse.json({ success: true, data: updated });
+    return apiSuccess(updated);
   } catch (error) {
     console.error("[PROFILE PATCH ERROR]", error);
-    return NextResponse.json({ success: false, error: "Failed to update profile." }, { status: 500 });
+    return apiError("Failed to update profile.", 500);
   }
 }

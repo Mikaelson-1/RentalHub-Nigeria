@@ -1,4 +1,4 @@
-import PublicNavbar from "@/components/PublicNavbar";
+import Navbar from "@/components/Navbar";
 
 export default function AuthLayout({
   children,
@@ -7,7 +7,7 @@ export default function AuthLayout({
 }) {
   return (
     <>
-      <PublicNavbar />
+      <Navbar variant="public" />
       <main className="flex-grow bg-gray-50 overflow-x-hidden">{children}</main>
     </>
   );
