@@ -217,8 +217,9 @@ export const authOptions: NextAuthOptions = {
         token.needsRoleSetup     = user.needsRoleSetup ?? false;
       }
 
-      // Keep role/verification fresh on subsequent requests
+      // Keep role/verification fresh on subsequent requests, but preserve the transient needsRoleSetup flag
       if (!user && token.id) {
+        const needsRoleSetupBackup = token.needsRoleSetup;
         const latest = await prisma.user.findUnique({
           where:  { id: token.id },
           select: {
@@ -233,6 +234,8 @@ export const authOptions: NextAuthOptions = {
           token.verificationStatus = latest.verificationStatus;
           token.avatarUrl          = latest.avatarUrl ?? null;
           token.name               = latest.name;
+          // Restore needsRoleSetup flag—it's transient and not stored in DB, only cleared via explicit session.update()
+          token.needsRoleSetup = needsRoleSetupBackup ?? false;
         }
       }
 
