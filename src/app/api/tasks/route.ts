@@ -16,7 +16,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { TaskPayload } from '@/lib/tasks';
 import prisma from '@/lib/prisma';
 import { sendMail } from '@/lib/email';
-import { notifyUser } from '@/lib/notifications';
+import { notifyUser, notifyRole } from '@/lib/notifications';
+import { computeImageHash, hammingDistance, DUPLICATE_THRESHOLD, analyzeImage } from '@/lib/image-analysis';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -79,25 +80,104 @@ async function handleImageProcessingTask(
   if (payload.type !== 'process-image') return;
 
   try {
-    // TODO: Implement image processing
-    // 1. Fetch image from payload.imageUrl
-    // 2. Compare hash against existing hashes in image_hashes table
-    // 3. Run AI image analysis if duplicate found
-    // 4. Store results in ImageHash model
-    // 5. Notify admin if suspicious
+    console.log(`[TASK] Processing image: ${payload.imageUrl} (hash: ${payload.hash})`);
 
-    console.log(`[TASK] Processing image: ${payload.imageUrl}`);
+    let flagged = false;
+    let flagReason: string | null = null;
+    let duplicatePropertyId: string | null = null;
 
-    // Placeholder: Mark in database that processing is complete
+    // 1. Check for duplicates using the hash computed on upload
+    const allHashes = await prisma.imageHash.findMany({
+      select: { hash: true, imageUrl: true, propertyId: true },
+      where: { imageUrl: { not: payload.imageUrl } }, // Exclude this image itself
+    });
+
+    const duplicate = allHashes.find(
+      (h) => hammingDistance(h.hash, payload.hash) <= DUPLICATE_THRESHOLD
+    );
+
+    if (duplicate) {
+      flagged = true;
+      flagReason = `Duplicate of image in property ${duplicate.propertyId}`;
+      duplicatePropertyId = duplicate.propertyId;
+      console.log(`[TASK] Duplicate detected: ${payload.imageUrl}`);
+    }
+
+    // 2. Run AI suspicious/generated image analysis
+    let aiSuspicious = false;
+    let aiReasons: string[] = [];
+    try {
+      // Fetch image bytes from Vercel Blob for analysis
+      const blobUrl = payload.imageUrl.startsWith('http')
+        ? payload.imageUrl
+        : `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${payload.imageUrl}`;
+
+      // Extract filename from URL for AI analysis
+      const filename = payload.imageUrl.split('/').pop() || 'image.jpg';
+      const response = await fetch(blobUrl);
+
+      if (response.ok) {
+        const buffer = await response.arrayBuffer();
+        const bytes = Buffer.from(buffer);
+
+        const analysis = await analyzeImage(bytes, filename);
+        if (analysis.suspicious) {
+          aiSuspicious = true;
+          aiReasons = analysis.reasons;
+
+          if (!flagged) {
+            flagged = true;
+            flagReason = `AI flagged as suspicious: ${aiReasons.join('; ')}`;
+          }
+
+          console.log(`[TASK] AI analysis flagged image: ${payload.imageUrl}`);
+        }
+      }
+    } catch (analysisError) {
+      console.error(`[TASK IMAGE ANALYSIS ERROR] Failed to analyze ${payload.imageUrl}:`, analysisError);
+      // Don't fail the task; continue with duplicate check results
+    }
+
+    // 3. Update imageHash record with results
     await prisma.imageHash.updateMany(
       {
         imageUrl: payload.imageUrl,
       },
       {
-        flagged: false,
-        flagReason: null,
+        flagged,
+        flagReason,
       }
     );
+
+    // 4. Notify admin if flagged
+    if (flagged) {
+      const uploader = await prisma.user.findUnique({
+        where: { id: payload.uploadedById },
+        select: { name: true, email: true },
+      });
+
+      const duplicateInfo = duplicatePropertyId
+        ? ` Matches existing property (${duplicatePropertyId}).`
+        : '';
+      const aiInfo = aiReasons.length > 0 ? ` AI flags: ${aiReasons.join('; ')}` : '';
+
+      await notifyRole(
+        'ADMIN',
+        'Suspicious image detected',
+        `${uploader?.name || 'User'} uploaded a flagged image.${duplicateInfo}${aiInfo}`,
+        'PROPERTY',
+        '/admin'
+      ).catch(console.error);
+
+      // Notify uploader that their image was flagged
+      await notifyUser({
+        userId: payload.uploadedById,
+        type: 'PROPERTY',
+        title: 'Image flagged',
+        message: 'One of your uploaded images was flagged during review. Your listing remains pending.',
+        link: '/landlord',
+      }).catch(console.error);
+    }
   } catch (error) {
     console.error('[TASK IMAGE PROCESSING ERROR]', error);
     throw error;

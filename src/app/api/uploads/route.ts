@@ -23,8 +23,8 @@ import {
   computeImageHash,
   hammingDistance,
   DUPLICATE_THRESHOLD,
-  analyzeImage,
 } from "@/lib/image-analysis";
+import { enqueueImageProcessing } from "@/lib/tasks";
 
 export const runtime = "nodejs";
 
@@ -115,27 +115,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // ── Image analysis (property photos only) ──────────────────────────────
+    // ── Image processing (property photos only) ──────────────────────────────
+    let newHash = "";
     if (category === "image") {
-      // 1. Suspicious / AI-generated check
-      const analysis = await analyzeImage(bytes, file.name);
-      if (analysis.suspicious) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "This image was automatically rejected.",
-            reasons: analysis.reasons,
-            tip: "Please upload a real photo taken at the property with your phone or camera.",
-          },
-          { status: 422 },
-        );
-      }
+      // V45 fix: compute hash synchronously (fast), queue AI analysis async
+      // This unblocks the upload response while still catching duplicates immediately
+      newHash = await computeImageHash(bytes);
 
-      // 2. Duplicate detection — compare against all stored hashes
-      const newHash    = await computeImageHash(bytes);
-      const allHashes  = await prisma.imageHash.findMany({ select: { hash: true, imageUrl: true, propertyId: true } });
-      const duplicate  = allHashes.find(
-        (h) => hammingDistance(h.hash, newHash) <= DUPLICATE_THRESHOLD,
+      // Check for duplicates synchronously (important for security)
+      const allHashes = await prisma.imageHash.findMany({
+        select: { hash: true, imageUrl: true, propertyId: true }
+      });
+      const duplicate = allHashes.find(
+        (h) => hammingDistance(h.hash, newHash) <= DUPLICATE_THRESHOLD
       );
 
       if (duplicate) {
@@ -153,12 +145,11 @@ export async function POST(request: Request) {
         );
       }
 
-      // Store the hash (imageUrl filled in after write below — we'll update if needed)
-      // We store it now with a placeholder and update after write
+      // Create imageHash record with hash (AI analysis will update flagged status async)
       await prisma.imageHash.create({
         data: {
-          hash:         newHash,
-          imageUrl:     "__pending__",
+          hash: newHash,
+          imageUrl: "__pending__",
           uploadedById: session.user.id,
         },
       });
@@ -195,7 +186,14 @@ export async function POST(request: Request) {
     if (category === "image") {
       await prisma.imageHash.updateMany({
         where: { uploadedById: session.user.id, imageUrl: "__pending__" },
-        data:  { imageUrl: url },
+        data: { imageUrl: url },
+      });
+
+      // V45 fix: queue image analysis asynchronously (AI suspicious check)
+      // Hash comparison already done above; this task handles AI analysis
+      enqueueImageProcessing(url, newHash, session.user.id).catch((error) => {
+        console.error("[UPLOAD] Failed to queue image processing:", error);
+        // Don't fail upload if queueing fails
       });
     }
 
