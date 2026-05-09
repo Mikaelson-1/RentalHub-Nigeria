@@ -18,6 +18,8 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const school = searchParams.get("school");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const pageSize = Math.min(100, Math.max(5, parseInt(searchParams.get("pageSize") || "20", 10))); // 5-100, default 20
 
     const locationFilter =
       school && SCHOOL_LOCATION_KEYWORDS[school]
@@ -32,9 +34,18 @@ export async function GET(request: Request) {
           }
         : {};
 
+    // Fetch total count for pagination metadata
+    const total = await prisma.booking.count({ where: locationFilter });
+
     const bookings = await prisma.booking.findMany({
       where: locationFilter,
-      include: {
+      select: {
+        id: true,
+        status: true,
+        paymentStatus: true,
+        createdAt: true,
+        paidAt: true,
+        amount: true,
         student: { select: { name: true, email: true } },
         property: {
           select: {
@@ -46,10 +57,20 @@ export async function GET(request: Request) {
         },
       },
       orderBy: { createdAt: "desc" },
-      take: 300,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
 
-    return NextResponse.json({ success: true, data: bookings });
+    return NextResponse.json({
+      success: true,
+      data: bookings,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        pages: Math.ceil(total / pageSize),
+      },
+    });
   } catch (error) {
     console.error("[ADMIN BOOKINGS GET ERROR]", error);
     return NextResponse.json({ success: false, error: "Failed to fetch bookings." }, { status: 500 });

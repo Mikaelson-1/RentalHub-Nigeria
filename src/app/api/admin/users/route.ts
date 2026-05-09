@@ -10,7 +10,7 @@ import {
 } from "@/lib/email";
 import { notifyUser } from "@/lib/notifications";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -22,8 +22,22 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "Admin access required." }, { status: 403 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const pageSize = Math.min(100, Math.max(5, parseInt(searchParams.get("pageSize") || "20", 10)));
+
+    const total = await prisma.user.count();
+
     const users = await prisma.user.findMany({
-      include: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        verificationStatus: true,
+        emailVerified: true,
+        phoneVerified: true,
+        createdAt: true,
         _count: {
           select: {
             properties: true,
@@ -32,10 +46,20 @@ export async function GET() {
         },
       },
       orderBy: { createdAt: "desc" },
-      take: 300,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
 
-    return NextResponse.json({ success: true, data: users });
+    return NextResponse.json({
+      success: true,
+      data: users,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        pages: Math.ceil(total / pageSize),
+      },
+    });
   } catch (error) {
     console.error("[ADMIN USERS GET ERROR]", error);
     return NextResponse.json({ success: false, error: "Failed to fetch users." }, { status: 500 });

@@ -27,6 +27,7 @@ export async function GET() {
     // email if the change wasn't them.
     const quarantineCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
+    // Optimized: Use select instead of include+nested queries to avoid N+1 payments
     const payouts = await prisma.booking.findMany({
       where: {
         movedInConfirmedAt: { not: null },
@@ -41,7 +42,10 @@ export async function GET() {
           },
         },
       },
-      include: {
+      select: {
+        id: true,
+        amount: true,
+        movedInConfirmedAt: true,
         student: { select: { id: true, name: true, email: true } },
         property: {
           select: {
@@ -61,12 +65,6 @@ export async function GET() {
               },
             },
           },
-        },
-        payments: {
-          where: { status: "SUCCESS" },
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: { amount: true, paidAt: true },
         },
       },
       orderBy: { movedInConfirmedAt: "asc" }, // oldest first
