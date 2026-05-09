@@ -7,6 +7,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { enqueueEmail, wrapEmailHtml } from "@/lib/tasks";
+import { getOrSet } from "@/lib/cache";
+import { Redis } from "@upstash/redis";
 
 export async function GET() {
   try {
@@ -18,16 +20,25 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "Only landlords can access this" }, { status: 403 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        bankAccountNumber: true,
-        bankCode: true,
-        bankName: true,
-        bankAccountName: true,
-        paystackRecipientCode: true,
+    const cacheKey = `landlord:bankaccount:${session.user.id}`;
+    const TTL_SECONDS = 24 * 60 * 60; // 24 hours
+
+    const user = await getOrSet(
+      cacheKey,
+      async () => {
+        return await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: {
+            bankAccountNumber: true,
+            bankCode: true,
+            bankName: true,
+            bankAccountName: true,
+            paystackRecipientCode: true,
+          },
+        });
       },
-    });
+      TTL_SECONDS
+    );
 
     if (!user) {
       return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
@@ -127,6 +138,15 @@ export async function POST(request: NextRequest) {
       <p style="color:#475569;font-size:13px;">For your safety, all rent payouts to this landlord account are paused for the next 24 hours while we verify the change.</p>
     `);
     enqueueEmail(landlord.email, "RentalHub — payout bank account changed", html).catch((err) => console.error("[bank-account] change-notification email queue failed:", err));
+
+    // Invalidate bank account cache when details change
+    const redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL || '',
+      token: process.env.UPSTASH_REDIS_REST_TOKEN || '',
+    });
+    await redis.del(`landlord:bankaccount:${session.user.id}`).catch(() => {
+      // Ignore cache invalidation errors
+    });
 
     return NextResponse.json({
       success: true,
