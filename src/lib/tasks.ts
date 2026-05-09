@@ -148,6 +148,46 @@ export async function enqueueImageProcessing(
 }
 
 /**
+ * Helper to wrap email body in RentalHub HTML template.
+ * Matches the wrap() function in src/lib/email.ts.
+ */
+export function wrapEmailHtml(title: string, body: string): string {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:#192F59;padding:24px 32px;">
+            <p style="margin:0;font-size:20px;font-weight:bold;color:#ffffff;letter-spacing:0.5px;">RentalHub</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;color:#374151;font-size:15px;line-height:1.6;">
+            ${body}
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f9fafb;padding:20px 32px;border-top:1px solid #e5e7eb;">
+            <p style="margin:0;font-size:12px;color:#9ca3af;">© ${new Date().getFullYear()} RentalHub · Ikere-Ekiti, Ekiti State</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+  `;
+}
+
+/**
  * Convenience wrapper for cache invalidation.
  */
 export async function invalidateCacheAsync(patterns: string[]): Promise<TaskResult> {
