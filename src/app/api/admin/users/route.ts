@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { Role } from "@prisma/client";
 import { enqueueEmail, wrapEmailHtml } from "@/lib/tasks";
 import { notifyUser } from "@/lib/notifications";
+import { getOrSet } from "@/lib/cache";
 
 export async function GET(request: Request) {
   try {
@@ -22,39 +23,53 @@ export async function GET(request: Request) {
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const pageSize = Math.min(100, Math.max(5, parseInt(searchParams.get("pageSize") || "20", 10)));
 
-    const total = await prisma.user.count();
+    const cacheKey = `admin:users:page:${page}:size:${pageSize}`;
+    const TTL_SECONDS = 10 * 60; // 10 minutes
 
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        verificationStatus: true,
-        emailVerified: true,
-        phoneVerified: true,
-        createdAt: true,
-        _count: {
+    const result = await getOrSet(
+      cacheKey,
+      async () => {
+        const total = await prisma.user.count();
+
+        const users = await prisma.user.findMany({
           select: {
-            properties: true,
-            bookings: true,
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            verificationStatus: true,
+            emailVerified: true,
+            phoneVerified: true,
+            createdAt: true,
+            _count: {
+              select: {
+                properties: true,
+                bookings: true,
+              },
+            },
           },
-        },
+          orderBy: { createdAt: "desc" },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        });
+
+        return {
+          users,
+          pagination: {
+            page,
+            pageSize,
+            total,
+            pages: Math.ceil(total / pageSize),
+          },
+        };
       },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+      TTL_SECONDS
+    );
 
     return NextResponse.json({
       success: true,
-      data: users,
-      pagination: {
-        page,
-        pageSize,
-        total,
-        pages: Math.ceil(total / pageSize),
-      },
+      data: result.users,
+      pagination: result.pagination,
     });
   } catch (error) {
     console.error("[ADMIN USERS GET ERROR]", error);
