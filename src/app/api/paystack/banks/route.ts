@@ -1,12 +1,13 @@
 /**
  * GET /api/paystack/banks
  * Returns the list of supported banks from Paystack.
- * Cached for 1 hour since the list rarely changes.
+ * Cached for 1 hour (Redis + Next.js revalidate) since the list rarely changes.
  */
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
+import { getOrSet } from "@/lib/cache";
 
 export async function GET() {
   try {
@@ -27,21 +28,32 @@ export async function GET() {
       );
     }
 
-    const res = await fetch(
-      "https://api.paystack.co/bank?currency=NGN&type=nuban&perPage=100",
-      {
-        headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },
-        next: { revalidate: 3600 },
-      }
+    const cacheKey = 'static:paystack-banks';
+    const TTL_SECONDS = 60 * 60; // 1 hour
+
+    const banks = await getOrSet(
+      cacheKey,
+      async () => {
+        const res = await fetch(
+          "https://api.paystack.co/bank?currency=NGN&type=nuban&perPage=100",
+          {
+            headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },
+            next: { revalidate: 3600 },
+          }
+        );
+
+        const data = await res.json();
+
+        if (!data.status) {
+          throw new Error(data.message || "Failed to fetch banks from Paystack");
+        }
+
+        return data.data;
+      },
+      TTL_SECONDS
     );
 
-    const data = await res.json();
-
-    if (!data.status) {
-      return NextResponse.json({ success: false, error: "Failed to fetch banks" }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, banks: data.data });
+    return NextResponse.json({ success: true, banks });
   } catch (error) {
     console.error("[PAYSTACK BANKS ERROR]", error);
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });

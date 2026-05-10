@@ -6,6 +6,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { getOrSet } from "@/lib/cache";
+import { Redis } from "@upstash/redis";
 
 export async function GET() {
   try {
@@ -13,18 +15,27 @@ export async function GET() {
     if (!session?.user) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     if (session.user.role !== "STUDENT") return NextResponse.json({ success: false, error: "Students only." }, { status: 403 });
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phoneNumber: true,
-        avatarUrl: true,
-        createdAt: true,
-        _count: { select: { bookings: true } },
+    const cacheKey = `student:profile:${session.user.id}`;
+    const TTL_SECONDS = 10 * 60; // 10 minutes
+
+    const user = await getOrSet(
+      cacheKey,
+      async () => {
+        return await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phoneNumber: true,
+            avatarUrl: true,
+            createdAt: true,
+            _count: { select: { bookings: true } },
+          },
+        });
       },
-    });
+      TTL_SECONDS
+    );
 
     if (!user) return NextResponse.json({ success: false, error: "User not found." }, { status: 404 });
     return NextResponse.json({ success: true, data: user });
@@ -65,6 +76,15 @@ export async function PATCH(request: Request) {
         ...(avatarUrl !== undefined && { avatarUrl: avatarUrl || null }),
       },
       select: { id: true, name: true, email: true, phoneNumber: true, avatarUrl: true },
+    });
+
+    // Invalidate profile cache
+    const redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL || '',
+      token: process.env.UPSTASH_REDIS_REST_TOKEN || '',
+    });
+    await redis.del(`student:profile:${session.user.id}`).catch(() => {
+      // Ignore cache invalidation errors
     });
 
     return NextResponse.json({ success: true, data: updated });
